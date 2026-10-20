@@ -1,6 +1,6 @@
 /* ============ 间隔复习（艾宾浩斯） + 魔法任务 + 小花园 + 家长页 ============
    依赖 index.html 里的全局：app, session, token, player, shuffle, playSeq, fx,
-   enClip, zhClip, senClip, senZhClip, promptClips。
+   enClip, zhClip, senClip, senZhClip, actClip。
    进度保存在 localStorage（同一台手机、同一个浏览器内有效）。 */
 
 const SRS_KEY = "abc_srs_v1";
@@ -15,6 +15,12 @@ const MIN_Q = 10;         // 每组至少几题（不够时用“巩固题”补
 const HARD_BOX = 2;       // 等级到 🌿 以后改成 4 选 1，并优先放容易混淆的干扰项（减少猜对）
 const SEN_BOX = 3;        // 等级到 🪴 以后，有句子的词改听整句 “I can be a ___.”，低等级只听单词
 const RETRY_GAP = 3;      // 答错的词，隔几题后再考一次（只练习，不改复习计划）
+const SAY_BOX = 4;        // 等级到 🌳 以后，偏尔出“说一说”（只给图，孩子用英语说，家长判断）
+const ACT_MAX = 2;        // 每组任务最后最多几个“动一动”
+const ZH_FIRST_QS = 2;    // “听一听，找一找！”这句中文提示只在每组前几题播（设置为“总是”时每题都播）
+// 下面两个用 let：正常使用时当常量，测试里需要确定性时才改
+let SAY_CHANCE = 0.5;    // 每组任务里出现一题“说一说”的概率（没有等级≥ SAY_BOX 的到期词就不出）
+let ALT_VOICE_P = 0.5;   // 复习题用第二个英文声音的概率（新词一直用第一个声音）
 const LEGACY_NEW = [2, 3, 4];     // 旧版“少/标准/多”三档对应的每天新词数
 const SLOW_MS = 9000;     // 听完题目后超过 9 秒才点，算“犹豫”（不稳）
 const LOG_MAX = 400;      // 逐题记录最多保留最近 400 条
@@ -22,6 +28,11 @@ const STAGES = ["🌰", "🌱", "🌿", "🪴", "🌳", "🍎"];
 // 遗忘曲线的横坐标：“上次见到这个词”隔了几天。每档 [下限, 上限, 标签]
 const GAP_BUCKETS = [[1, 1, "1天"], [2, 2, "2天"], [3, 4, "3-4天"], [5, 7, "5-7天"], [8, 14, "8-14天"], [15, 29, "15-29天"], [30, 9999, "30天+"]];
 function gapBucket(g){ return GAP_BUCKETS.findIndex(b => g >= b[0] && g <= b[1]); }
+function normStory(o){
+  const r = {};
+  if(o && typeof o === "object") Object.keys(o).forEach(k => { const n = Math.max(0, Math.floor(+o[k] || 0)); if(n) r[k] = n; });
+  return r;
+}
 function freshCurve(){ return GAP_BUCKETS.map(() => [0, 0]); }
 function normCurve(c){
   if(!Array.isArray(c) || c.length !== GAP_BUCKETS.length) return freshCurve();
@@ -34,8 +45,9 @@ function normCurve(c){
 const freshSRS = () => ({
   words: {}, daily: {day: 0, newCount: 0, done: false, news: []},   // news：今天新学的词
   doneDays: [], streak: 0, lastDone: 0,
-  cfg: {newPerDay: NEW_DEFAULT, enRate: 1, promptRate: 1},
+  cfg: {newPerDay: NEW_DEFAULT, enRate: 1, promptRate: 1, zh: "new", say: true, act: true},
   curve: freshCurve(),   // 遗忘曲线汇总：每个“隔了几天”档 [测试次数, 第一次就点对次数]
+  story: {},             // 听故事排顺序：故事 id -> 完成次数
   log: []     // 逐题记录 {d:日期, k:词, ok:一次对, n:点几次, ms:反应毫秒, c:l学习/r遗忘测试/x巩固, p:第几次确认}
 });
 const clampNum = (v, lo, hi, def) => { v = +v; return isFinite(v) && v !== 0 ? Math.min(hi, Math.max(lo, v)) : def; };
@@ -44,7 +56,9 @@ function normCfg(c){
   // 旧存档：曾经用过 level（少/标准/多）或 quiz（每组题数，约三成是新词）
   const n = c.newPerDay != null ? c.newPerDay : (c.quiz != null ? Math.round(c.quiz * 0.3) : LEGACY_NEW[c.level]);
   const rate = v => Math.round(clampNum(v, RATE_MIN, RATE_MAX, 1) * 10) / 10;
-  return {newPerDay: Math.round(clampNum(n, NEW_MIN, NEW_MAX, NEW_DEFAULT)), enRate: rate(c.enRate), promptRate: rate(c.promptRate)};
+  return {newPerDay: Math.round(clampNum(n, NEW_MIN, NEW_MAX, NEW_DEFAULT)), enRate: rate(c.enRate), promptRate: rate(c.promptRate),
+          zh: c.zh === "all" ? "all" : "new",      // 中文翻译：只在新词页 / 总是播
+          say: c.say !== false, act: c.act !== false};   // “说一说”、“动一动”开关，默认开
 }
 // 兼容旧版本存档：缺的字段补默认值
 function normSRS(o){
@@ -52,6 +66,7 @@ function normSRS(o){
   if(!Array.isArray(s.log)) s.log = [];
   s.cfg = normCfg(s.cfg);
   s.curve = normCurve(s.curve);
+  s.story = normStory(s.story);
   return s;
 }
 function loadSRS(){
@@ -64,10 +79,14 @@ function loadSRS(){
 let SRS = loadSRS();
 SRS.cfg = normCfg(SRS.cfg);
 const newPerDay = () => normCfg(SRS.cfg).newPerDay;     // 每天最多新词数
+const zhAll = () => normCfg(SRS.cfg).zh === "all";      // true：每题都带中文提示和翻译；false：中文只留在新词页
+// data.js 里可能缺少新增的表（手机缓存了旧文件）：找不到就当作没有，不影响其他功能
+const actsOf = it => (typeof ACTS !== "undefined" && ACTS[it.id]) || null;
+const storyList = () => (typeof STORIES !== "undefined" ? STORIES : []);
 // 某段语音的播放速度：英语单词/句子用“英语播放语速”，其余（中文、提示、夸奖）用“提示语速”
 function rateFor(c){
   const u = (c && c.url) || "", cfg = normCfg(SRS.cfg);
-  if(/^audio\/(en|sen)\//.test(u)) return cfg.enRate;
+  if(/^audio\/(en|en2|sen|sen2|act)\//.test(u)) return cfg.enRate;
   if(/^audio\/(zh|senzh|fx)\//.test(u)) return cfg.promptRate;
   return 1;
 }
@@ -154,7 +173,7 @@ function pickChoices(it){
   return shuffle([it, ...others]);
 }
 const useSen = it => !!it.sen && boxOf(it) >= SEN_BOX;
-const qPrompt = () => [Q.sent ? senClip(Q.cur) : enClip(Q.cur)];
+const qPrompt = () => [Q.sent ? senClip(Q.cur, Q.voice) : enClip(Q.cur, Q.voice)];
 
 /* ---------- 家长小任务：今天新学的词 + 今天答错过的词，附生活里怎么用 ---------- */
 const tipOf = it => (typeof TIPS !== "undefined" && TIPS[wkey(it)]) || `在生活里找一找“${it.zh}”，问孩子：What is it?`;
@@ -272,6 +291,7 @@ function homeQuestHtml(){
   return `
     <button class="big quest" data-act="quest">🌈 今日魔法任务<small>${sub}</small></button>
     <button class="big green" data-act="garden">🌳 我的小花园<small>种下 ${s.planted}/${s.total} 棵${extra}</small></button>
+    ${storyHtml()}
     <div class="chips"><span class="chip">🔥 连续 ${currentStreak()} 天</span></div>
     <div class="sec-title">📚 单元练习</div>`;
 }
@@ -314,13 +334,35 @@ function startQuest(){
       if(j > 0){ const tmp = steps[i]; steps[i] = steps[j]; steps[j] = tmp; }
     }
   }
+  addSayAndActSteps(steps, due, news);
   Q = {steps, i: 0, mode, stars: 0, intro: true, cur: null, step: null, choices: [], locked: false,
-       review: false, conf: {}, qid: 0, tries: 0, ms: 0, t0: null};
+       review: false, conf: {}, qid: 0, tries: 0, ms: 0, t0: null, nq: 0, voice: 1, sent: false, wrongs: 0};
   questStep();
 }
+// “说一说”：偶尔把一个已经很熟（等级≥ SAY_BOX）的复习词的选择题换成“看图说英语”
+// “动一动”：任务最后听英语指令做动作（优先今天的新词、到期词），不影响复习计划
+function addSayAndActSteps(steps, due, news){
+  const cfg = normCfg(SRS.cfg);
+  if(cfg.say && Math.random() < SAY_CHANCE){
+    const cand = steps.filter(s => s.type === "quiz" && s.review && !s.extra && s.need === 1 && boxOf(s.it) >= SAY_BOX);
+    if(cand.length){
+      const s = cand[Math.floor(Math.random() * cand.length)];
+      steps[steps.indexOf(s)] = {type: "say", it: s.it, review: true, probe: 1, need: 1};
+    }
+  }
+  if(cfg.act){
+    const seen = new Set(), picked = [];
+    const add = it => { if(it && actsOf(it) && !seen.has(wkey(it)) && picked.length < ACT_MAX){ seen.add(wkey(it)); picked.push(it); } };
+    news.forEach(add);
+    shuffle(due).forEach(add);
+    shuffle(questPool().filter(it => SRS.words[wkey(it)])).forEach(add);
+    picked.forEach(it => steps.push({type: "act", it}));
+  }
+}
+const isDot = s => s.type === "quiz" || s.type === "say";     // 进度小点里算的题
 function qDots(){
-  const quizzes = Q.steps.filter(s => s.type === "quiz");
-  const cur = Q.steps.slice(0, Q.i).filter(s => s.type === "quiz").length;
+  const quizzes = Q.steps.filter(isDot);
+  const cur = Q.steps.slice(0, Q.i).filter(isDot).length;
   return `<div class="dots${quizzes.length > 12 ? " tiny" : ""}">` +
     quizzes.map((_, k) => k < cur ? "⭐" : (k === cur ? "🔹" : "⚪")).join("") + `</div>`;
 }
@@ -329,7 +371,10 @@ function questStep(){
   const s = Q.steps[Q.i];
   const pre = Q.intro ? [fx("fx_quest_zh")] : [];
   Q.intro = false;
-  s.type === "teach" ? questTeach(s.it, pre) : questQuiz(s, pre);
+  if(s.type === "teach") questTeach(s.it, pre);
+  else if(s.type === "say") questSay(s, pre);
+  else if(s.type === "act") questAct(s, pre);
+  else questQuiz(s, pre);
 }
 const teachClips = it => [enClip(it), zhClip(it), ...(it.sen ? [senClip(it), senZhClip(it)] : [])];
 
@@ -370,7 +415,11 @@ function questQuiz(s, pre){
   const it = s.it;
   Q.cur = it; Q.step = s; Q.choices = pickChoices(it); Q.sent = useSen(it);
   Q.locked = false; Q.review = !!s.review; Q.tries = 0; Q.ms = 0; Q.wrongs = 0;
-  const hint = s.retry ? "🔁 刚才答错的，再来一次" : s.extra ? "" : s.probe === 2 ? "🔁 再考一次，加油！"
+  // 复习题随机换第二个英文声音（同一个词听不同的人说）；新词一直用第一个
+  Q.voice = (s.review || s.extra) && Math.random() < ALT_VOICE_P ? 2 : 1;
+  if(!s.retry) Q.nq++;
+  const zhPrompt = zhAll() || Q.nq <= ZH_FIRST_QS;
+  const hint = s.retry ? "🔁 刚才答错的，再来一次" : s.fb ? "🔁 再听一听，找一找" : s.extra ? "" : s.probe === 2 ? "🔁 再考一次，加油！"
     : (s.review && Q.mode === "quest" ? "💧 小树渴了，答对就浇水" : "");
   app.innerHTML = `
     <div class="top"><button class="back" data-act="home">← 返回</button><span></span></div>
@@ -382,16 +431,21 @@ function questQuiz(s, pre){
       ${Q.choices.map((c, i) => `
         <div class="card" data-act="q-choose" data-i="${i}"><div class="emoji">${c.emoji}</div></div>`).join("")}
     </div>`;
-  promptThen([...pre, s.retry ? fx("fx_again_zh") : fx("fx_find_zh"), ...qPrompt()]);
+  promptThen([...pre, s.retry ? fx("fx_again_zh") : (zhPrompt ? fx("fx_find_zh") : null), ...qPrompt()]);
 }
 
+// 把一题插到队列里：隔 gap 题之后、“动一动”之前，不跟同一个词紧挨着
+function insertStep(step, gap){
+  const k = wkey(step.it), st = Q.steps;
+  const same = x => x && x.type === "quiz" && wkey(x.it) === k;
+  const lim = st.findIndex(x => x.type === "act"), end = lim < 0 ? st.length : lim;
+  let at = Math.min(end, Q.i + 1 + gap);
+  while(at < end && (same(st[at - 1]) || same(st[at]))) at++;
+  st.splice(at, 0, step);
+}
 // 答错的词：隔 RETRY_GAP 题后再考一次。这次只算练习（extra），不改复习计划、不计入遗忘统计
 function requeueMiss(it){
-  const k = wkey(it), st = Q.steps;
-  const same = x => x && x.type === "quiz" && wkey(x.it) === k;
-  let at = Math.min(st.length, Q.i + 1 + RETRY_GAP);
-  while(at < st.length && (same(st[at - 1]) || same(st[at]))) at++;     // 不跟同一个词紧挨着
-  st.splice(at, 0, {type: "quiz", it, review: false, probe: 0, need: 0, extra: true, retry: true});
+  insertStep({type: "quiz", it, review: false, probe: 0, need: 0, extra: true, retry: true}, RETRY_GAP);
 }
 
 async function qChoose(i, el){
@@ -408,7 +462,7 @@ async function qChoose(i, el){
       const ci = Q.choices.findIndex(x => wkey(x) === wkey(it));
       const right = app.querySelector && app.querySelector(`[data-act="q-choose"][data-i="${ci}"]`);
       if(right) right.classList.add("hint");
-      playSeq([fx("fx_look_zh"), enClip(it), enClip(it)]);
+      playSeq([fx("fx_look_zh"), enClip(it, Q.voice), enClip(it, Q.voice)]);
     }else{
       playSeq([fx("fx_try_en"), ...qPrompt()]);
     }
@@ -418,12 +472,13 @@ async function qChoose(i, el){
   el.classList.remove("hint");
   el.classList.add("correct");
   const first = Q.tries === 1, retry = !!Q.step.retry;
-  if(first && !retry) Q.stars++;
+  if(first && !retry && !Q.step.fb) Q.stars++;     // fb：“说一说”没说出来后的补考，星星已在那一题里算过了
   const r = applyResult(Q.step, first, Q.ms, Q.tries);
   if(!first && !retry) requeueMiss(it);
   const fb = document.getElementById("fb");
   if(fb) fb.textContent = retry ? (first ? "这次答对啦 👍" : "") : feedbackText(r);
-  const list = [fx("fx_good_en"), enClip(it), zhClip(it)];
+  const list = [fx("fx_good_en"), enClip(it, Q.voice)];
+  if(zhAll()) list.push(zhClip(it));       // 中文翻译默认只在新词页播
   if(r.kind === "up" && Q.review) list.push(fx("fx_water_zh"));
   const s = session;
   await playSeq(list);
@@ -442,7 +497,7 @@ function questFinish(){
     SRS.doneDays = SRS.doneDays.slice(-60);
   }
   saveSRS();
-  const total = Q.steps.filter(s => s.type === "quiz" && !s.retry).length;     // “再考一次”不算在题数里
+  const total = Q.steps.filter(s => (s.type === "quiz" && !s.retry && !s.fb) || s.type === "say").length;     // “再考一次”“补考”不算在题数里
   app.innerHTML = `
     <div class="top"><span></span><span></span></div>
     <h1>🎉 今天的任务完成啦！</h1>
@@ -453,6 +508,158 @@ function questFinish(){
     <button class="big blue" data-act="quest">➕ 再练一组</button>
     <button class="big" data-act="home">🏠 回到首页</button>`;
   playSeq([fx("fx_done_zh")]);
+}
+
+/* ---------- 说一说：只给图，孩子用英语说，家长判断 ----------
+   说对：算一次“第一次就答对”，按复习计划升级（主动说出比认出更难）。
+   没说出来：不热分、不算遗忘，带孩子读两遍，然后稍后补考一道正常的选择题（那道题影响复习计划）。 */
+function questSay(s, pre){
+  const it = s.it;
+  Q.cur = it; Q.step = s; Q.locked = false;
+  app.innerHTML = `
+    <div class="top"><button class="back" data-act="home">← 返回</button><span></span></div>
+    ${qDots()}
+    <h2>🗣 说一说</h2>
+    <div class="card teach">
+      <div class="emoji">${it.emoji}</div>
+      <div class="en" id="say-en" style="visibility:hidden">${it.en}</div>
+    </div>
+    <div class="fb" id="fb">让孩子用英语说说看，说完家长点下面的按钮</div>
+    <div class="row">
+      <button class="ok" data-act="s-ok">👍 说对了</button>
+      <button class="ghost" data-act="s-no">🔁 没说出来</button>
+    </div>
+    <div class="footer">家长来判断：说对了就点“说对了”。没说出来也没关系，会带孩子读一读，等一下再考一次。</div>`;
+  playSeq([...pre, fx("fx_say_zh")]);
+}
+async function sayDone(ok){
+  if(!Q || Q.locked || !Q.step || Q.step.type !== "say") return;
+  Q.locked = true;
+  const it = Q.cur, s = Q.step, sn = session;
+  const en = document.getElementById("say-en");
+  if(en && en.style) en.style.visibility = "visible";
+  const fb = document.getElementById("fb");
+  if(ok){
+    Q.stars++;
+    const r = applyResult(s, true, 0, 1);
+    if(fb) fb.textContent = feedbackText(r) || "说得真好！";
+    await playSeq([fx("fx_good_en"), enClip(it), ...(zhAll() ? [zhClip(it)] : [])]);
+  }else{
+    insertStep({type: "quiz", it, review: true, probe: 1, need: 1, fb: true}, RETRY_GAP);
+    if(fb) fb.textContent = "没关系，跟我读！等一下再考考你 🙂";
+    await playSeq([fx("fx_look_zh"), enClip(it), enClip(it)]);
+  }
+  if(sn !== session) return;
+  Q.i++;
+  questStep();
+}
+
+/* ---------- 动一动：听英语指令做动作（不计分、不影响复习计划） ---------- */
+function questAct(s, pre){
+  const it = s.it, a = actsOf(it);
+  Q.cur = it; Q.step = s; Q.locked = false;
+  app.innerHTML = `
+    <div class="top"><button class="back" data-act="home">← 返回</button><span></span></div>
+    <h2>🕺 动一动</h2>
+    <div class="card teach" data-act="a-say">
+      <div class="emoji">${it.emoji}</div>
+      <div class="en" style="font-size:26px">${a.en}</div>
+      <div class="zh">${a.zh}</div>
+    </div>
+    <div class="fb" id="fb">听指令，做动作！</div>
+    <div class="row">
+      <button class="ok" data-act="a-done">👍 做完啦</button>
+      <button class="ghost" data-act="a-say">🔊 再听一遍</button>
+    </div>
+    <div class="row"><button class="ghost" data-act="a-skip">跳过</button></div>`;
+  playSeq([...pre, fx("fx_act_zh"), actClip(it)]);
+}
+async function actDone(ok){
+  if(!Q || Q.locked || !Q.step || Q.step.type !== "act") return;
+  Q.locked = true;
+  const sn = session;
+  if(ok) await playSeq([fx("fx_good_en")]);
+  if(sn !== session) return;
+  Q.i++;
+  questStep();
+}
+
+/* ---------- 听故事，排顺序 ----------
+   学会一个单元的词（等级≥ 1）后解锁：播一遍由几句话组成的小故事，孩子把图片按故事的顺序一张一张点出来。
+   不计入复习计划，只记完成次数。 */
+const itemById = id => { for(const l of LESSONS){ const it = l.items.find(x => x.id === id); if(it) return it; } return null; };
+function storyProgress(st){
+  const lesson = LESSONS.find(x => x.id === st.unit);
+  const keys = [...new Set((lesson ? lesson.items : []).filter(i => !i.sentence && i.game !== false).map(wkey))];
+  const got = keys.filter(k => SRS.words[k] && SRS.words[k].box >= 1).length;
+  return {got, need: keys.length, open: keys.length > 0 && got >= keys.length, lesson};
+}
+function storyHtml(){
+  return storyList().map((st, i) => {
+    const p = storyProgress(st), n = SRS.story[st.id] || 0;
+    return p.open
+      ? `<button class="big blue" data-act="story" data-i="${i}">📖 听故事，排顺序<small>${st.title}${n ? ` · 已完成 ${n} 次` : ""}</small></button>`
+      : `<div class="big locked">🔒 听故事，排顺序<small>学会“${p.lesson ? p.lesson.zh : ""}”单元的词后解锁 · ${p.got}/${p.need}</small></div>`;
+  }).join("");
+}
+let S = null;
+const NUMS = ["①", "②", "③", "④", "⑤", "⑥"];
+const storyClips = () => S.lines.map(it => enClip(it));
+function storyStart(idx){
+  const st = storyList()[idx];
+  if(!st || !storyProgress(st).open) return;
+  const lines = st.lines.map(itemById);
+  if(lines.length < 2 || lines.some(x => !x)) return;
+  session++;
+  let order;
+  do{ order = shuffle(lines.map((_, i) => i)); }while(order.every((v, i) => v === i));   // 不能一开始就是对的顺序
+  S = {st, idx, lines, order, next: 0, miss: 0, locked: false, done: new Set()};
+  app.innerHTML = `
+    <div class="top"><button class="back" data-act="home">← 返回</button><span></span></div>
+    <h2>📖 ${st.title}</h2>
+    <button class="speaker" data-act="st-play">🔊</button>
+    <div class="fb" id="fb">按故事的顺序，一张一张点图片</div>
+    <div class="choices w story">
+      ${order.map(i => `
+        <div class="card" data-act="st-pick" data-i="${i}"><div class="badge"></div><div class="emoji">${lines[i].emoji}</div></div>`).join("")}
+    </div>`;
+  playSeq([fx("fx_story_zh"), ...storyClips()]);
+}
+async function storyPick(i, el){
+  if(!S || S.locked) return;
+  const it = S.lines[i];
+  if(!it) return;
+  if(S.done.has(i)){ playSeq([enClip(it)]); return; }
+  if(i !== S.next){
+    S.miss++;
+    el.classList.add("wrong");
+    setTimeout(() => el.classList.remove("wrong"), 500);
+    playSeq([fx("fx_try_en"), ...storyClips()]);       // 重听整个故事，不直接告诉答案
+    return;
+  }
+  S.done.add(i); S.next++;
+  el.classList.add("correct");
+  const b = el.querySelector && el.querySelector(".badge");
+  if(b) b.textContent = NUMS[i] || String(i + 1);
+  if(S.next < S.lines.length){ playSeq([enClip(it)]); return; }
+  S.locked = true;
+  SRS.story[S.st.id] = (SRS.story[S.st.id] || 0) + 1;
+  saveSRS();
+  const sn = session;
+  await playSeq([enClip(it)]);
+  if(sn !== session) return;
+  storyFinish();
+}
+function storyFinish(){
+  const stars = S.miss === 0 ? 3 : S.miss <= 2 ? 2 : 1;
+  app.innerHTML = `
+    <div class="top"><span></span><span></span></div>
+    <h1>🎉 故事讲完啦！</h1>
+    <div class="stars">${"⭐".repeat(stars)}</div>
+    <div class="sub">${S.miss ? `点错 ${S.miss} 次` : "一次就排对啦！"}</div>
+    <button class="big blue" data-act="st-again">🔁 再听一遍，再排一次</button>
+    <button class="big" data-act="home">🏠 回到首页</button>`;
+  playSeq([fx("fx_good_en"), ...storyClips(), fx("fx_done_zh")]);
 }
 
 /* ---------- 小花园 ---------- */
@@ -542,6 +749,8 @@ function parentPage(){
   const rate = rc ? Math.round(fg / rc * 100) + "%" : "—";
   const cfg = normCfg(SRS.cfg);
   const rv = v => Math.round(v * 10), rl = v => "×" + v.toFixed(1);
+  const tg = (k, v, label, on) => `<button class="small-btn${on ? " on" : " ghost"}" data-act="p-set" data-k="${k}" data-v="${v}">${label}</button>`;
+  const storyDone = Object.values(SRS.story).reduce((a, b) => a + b, 0);
   let hist = "", histN = 0;
   const wdOf = n => (new Date(n * 86400000).getUTCDay() + 6) % 7;   // 周一=0 … 周日=6
   const first = t - 29, startCell = first - wdOf(first), endCell = t + (6 - wdOf(t));
@@ -566,6 +775,7 @@ function parentPage(){
       ${line("已学 / 总词数", s.planted + " / " + s.total)}
       ${line("已长成苹果树 🍎", s.mastered + " 个")}
       ${line("已记录作答", SRS.log.length + " 次")}
+      ${storyList().length ? line("听故事排顺序", "完成 " + storyDone + " 次") : ""}
       <div class="line"><span>${STAGES.map((g, i) => g + s.byStage[i]).join("　")}</span></div>
     </div>
     <div class="sec"><h3>未来 7 天要复习</h3>${upcoming}</div>
@@ -578,6 +788,14 @@ function parentPage(){
     ${curveSection()}
     <div class="sec"><h3>最容易忘的词</h3>${weakHtml}</div>
     <div class="sec"><h3>还没学会的词</h3>${learningHtml}</div>
+    <div class="sec"><h3>学习方式</h3>
+      <div class="note"><b>中文翻译</b>：“只在新词页”是认识新词时才告诉孩子中文，答题时只听英文（每组只在前 2 题用中文提示），英语输入更多，推荐。“总是播放”是每题都带中文提示和翻译，适合刚接触英语的孩子。</div>
+      ${tg("zh", "new", "只在新词页", cfg.zh === "new")}${tg("zh", "all", "总是播放", cfg.zh === "all")}
+      <div class="note" style="margin-top:12px"><b>说一说</b>：偶尔（约一半的任务）挑一个已经很熟的词（🌳 以上），只给图、让孩子用英语说，由家长点“说对了”或“没说出来”。说对算一次复习答对；没说出来不扣分，会带读并补考一道选择题。</div>
+      ${tg("say", "1", "开", cfg.say)}${tg("say", "0", "关", !cfg.say)}
+      <div class="note" style="margin-top:12px"><b>动一动</b>：每组任务最后，按1–2 个词播英语指令（如 “Show me a dancer!”），让孩子做动作，家长点“做完啦”。不计分、不影响复习日程。</div>
+      ${tg("act", "1", "开", cfg.act)}${tg("act", "0", "关", !cfg.act)}
+    </div>
     <div class="sec"><h3>每天新词数</h3>
       <div class="note">每天最多学 <b id="v-new">${cfg.newPerDay}</b> 个新词（可设 ${NEW_MIN}～${NEW_MAX}）。每个新词先教一遍，当天再考 2 次，所以新词约占 <b id="v-newq">${cfg.newPerDay * 2}</b> 题；再加上当天到期的复习题（每组最多 ${MAX_DUE} 个旧词），不足 ${MIN_Q} 题时用已学过的词补满。孩子觉得太简单就调多，注意力不够就调少。当天已学的新词达到上限后，“再练一组”只会复习。</div>
       <input type="range" class="rng" min="${NEW_MIN}" max="${NEW_MAX}" step="1" value="${cfg.newPerDay}" data-set="newPerDay">
@@ -603,7 +821,7 @@ function parentPage(){
       <button class="small-btn ghost" data-act="p-reset">清空进度</button>
     </div>
     <div class="sec"><h3>复习规则</h3>
-      <div class="note">学会后在第 1、2、4、7、15 天各复习一次。新词要在同一天连续两次第一次就点对，而且没有犹豫太久（听完后 9 秒内），才算学会、小树长大；犹豫的算不稳，不升级；点错会降级，明天再练。词长到 🌿 以后改成 4 选 1，到 🪴 以后有句子的词改听整句。答错的词隔几题后会再考一次（只算练习，不影响复习日程和统计）；连点错 2 次会把正确的图亮出来带孩子读。每天新词数和语速可在上面调整。</div>
+      <div class="note">学会后在第 1、2、4、7、15 天各复习一次。新词要在同一天连续两次第一次就点对，而且没有犹豫太久（听完后 9 秒内），才算学会、小树长大；犹豫的算不稳，不升级；点错会降级，明天再练。词长到 🌿 以后改成 4 选 1，到 🪴 以后有句子的词改听整句，复习题会随机换一个英文声音。答错的词隔几题后会再考一次（只算练习，不影响复习日程和统计）；连点错 2 次会把正确的图亮出来带孩子读。每天新词数和语速可在上面调整。</div>
     </div>`;
   document.getElementById("bk").value = backupText();
 }
@@ -619,6 +837,26 @@ document.addEventListener("click", e => {
     case "q-say":    if(Q && Q.cur) playSeq(teachClips(Q.cur)); break;
     case "q-repeat": if(Q && !Q.locked && Q.step && Q.step.type === "quiz") promptThen(qPrompt()); break;
     case "q-choose": qChoose(i, t); break;
+    case "s-ok":     sayDone(true); break;
+    case "s-no":     sayDone(false); break;
+    case "a-say":    if(Q && Q.step && Q.step.type === "act") playSeq([actClip(Q.cur)]); break;
+    case "a-done":   actDone(true); break;
+    case "a-skip":   actDone(false); break;
+    case "story":    storyStart(i); break;
+    case "st-pick":  storyPick(i, t); break;
+    case "st-play":  if(S && !S.locked) playSeq(storyClips()); break;
+    case "st-again": if(S) storyStart(S.idx); break;
+    case "p-set": {
+      const k = t.dataset.k, v = t.dataset.v, c = normCfg(SRS.cfg);
+      if(k === "zh") c.zh = v === "all" ? "all" : "new";
+      else if(k === "say" || k === "act") c[k] = v === "1";
+      else break;
+      SRS.cfg = c; saveSRS();
+      const y = (typeof window !== "undefined" && window.scrollY) || 0;
+      parentPage();                                  // 重新画一遍，再回到原来的滚动位置
+      try{ window.scrollTo(0, y); }catch(err){}
+      break;
+    }
     case "garden":   garden(); break;
     case "g-say": {
       const it = questPool()[i];

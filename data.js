@@ -59,7 +59,38 @@ const FX = [
   {"id": "fx_mine_zh", "lang": "zh", "text": "听听你的声音！"},
   {"id": "fx_std_zh", "lang": "zh", "text": "再听听标准发音！"},
   {"id": "fx_look_zh", "lang": "zh", "text": "看，是这一个！跟我读！"},
-  {"id": "fx_again_zh", "lang": "zh", "text": "刚才那个，再来一次！"}
+  {"id": "fx_again_zh", "lang": "zh", "text": "刚才那个，再来一次！"},
+  {"id": "fx_say_zh", "lang": "zh", "text": "这是什么？用英语说一说！"},
+  {"id": "fx_act_zh", "lang": "zh", "text": "动一动时间到！听一听，做动作！"},
+  {"id": "fx_story_zh", "lang": "zh", "text": "听一听这个故事，再按顺序点图片！"}
+];
+
+// 动一动：听到英语指令，做动作。键是单词的 id；en 是播放的英语指令，zh 是给家长看的动作提示。
+const ACTS = {
+  "fire_station": {"en": "Run to the fire station!", "zh": "跑向消防站"},
+  "alarm_bell":   {"en": "Ring the alarm bell!", "zh": "摇一摇警报铃"},
+  "hose":         {"en": "Hold the hose!", "zh": "握住水管，对准火苗"},
+  "save":         {"en": "Save the toy!", "zh": "把小玩具救出来"},
+  "cheer":        {"en": "Everybody, cheer! Hooray!", "zh": "举起双手一起欢呼"},
+  "pole":         {"en": "Slide down the pole!", "zh": "抱着滑杆滑下来"},
+  "firefighter2": {"en": "Show me a firefighter!", "zh": "扮成消防员，举着水管灭火"},
+  "teacher":      {"en": "Show me a teacher!", "zh": "扮成老师，指着黑板讲课"},
+  "vet":          {"en": "Show me a vet!", "zh": "扮成兽医，给小动物看病"},
+  "mechanic":     {"en": "Show me a mechanic!", "zh": "扮成修理工，拧螺丝"},
+  "builder":      {"en": "Show me a builder!", "zh": "扮成建筑工人，搬砖砌墙"},
+  "footballer":   {"en": "Show me a footballer!", "zh": "扮成足球运动员，踢一脚球"},
+  "musician":     {"en": "Show me a musician!", "zh": "扮成音乐家，拉小提琴"},
+  "dancer":       {"en": "Show me a dancer!", "zh": "扮成舞蹈家，转个圈"},
+  "hairdresser":  {"en": "Show me a hairdresser!", "zh": "扮成理发师，给别人梳头"},
+  "doctor":       {"en": "Show me a doctor!", "zh": "扮成医生，用听诊器听一听"},
+  "nurse":        {"en": "Show me a nurse!", "zh": "扮成护士，打一针"},
+  "programmer":   {"en": "Show me a programmer!", "zh": "扮成程序员，敲键盘"},
+  "astronaut":    {"en": "Show me an astronaut!", "zh": "扮成宇航员，飞上太空"}
+};
+
+// 听故事排顺序：unit 里的词都学过（等级≥1）后解锁；lines 是故事的句子 id（按故事顺序）。
+const STORIES = [
+  {"id": "fire", "title": "消防员出动啦", "unit": "unit1", "lines": ["s_alarm", "s_reach", "s_out"]}
 ];
 
 // 容易混淆的词（按词的英文小写）。词长到 🌿 以上、改成 4 选 1 时，干扰项优先从这里挑。双向生效，写一边就行。

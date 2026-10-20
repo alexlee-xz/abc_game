@@ -30,8 +30,9 @@ const prelude = `
   const playSeq = async list => { played.push(list.filter(Boolean).map(c=>c.url)); return true; };
   const shuffle = a => a.slice().sort(()=>Math.random()-0.5);
   const clip = (kind,id,text,lang)=>({url:'audio/'+kind+'/'+id+'.mp3',text,lang});
-  const enClip=it=>clip('en',it.id,it.en,'en'), zhClip=it=>clip('zh',it.id,it.zh,'zh');
-  const senClip=it=>clip('sen',it.id,it.sen,'en'), senZhClip=it=>clip('senzh',it.id,it.senZh,'zh');
+  const enClip=(it,v)=>clip(v===2?'en2':'en',it.id,it.en,'en'), zhClip=it=>clip('zh',it.id,it.zh,'zh');
+  const senClip=(it,v)=>clip(v===2?'sen2':'sen',it.id,it.sen,'en'), senZhClip=it=>clip('senzh',it.id,it.senZh,'zh');
+  const actClip=it=>clip('act',it.id,(ACTS[it.id]||{}).en,'en');
   const fx = id => { const f = FX.find(x=>x.id===id); return f ? clip('fx',id,f.text,f.lang) : null; };
   const promptClips = it => [it.sen ? senClip(it) : enClip(it)];
 `;
@@ -49,18 +50,24 @@ const ev = code => vm.runInContext(code, ctx);
 // values coming out of the vm have another realm's prototypes; JSON round-trip for deep comparisons
 const J = x => JSON.parse(JSON.stringify(x));
 
+// random behaviour is switched off by default so the older tests stay deterministic; the new tests turn it on explicitly
+ev(`SAY_CHANCE = 0; ALT_VOICE_P = 0;`);
+
 // every audio file referenced must exist
 const missing = [];
 ev(`LESSONS`).forEach(l => l.items.forEach(it => {
   const files = [`en/${it.id}`, `zh/${it.id}`].concat(it.sen ? [`sen/${it.id}`, `senzh/${it.id}`] : []);
+  if(!it.sentence && it.game !== false) files.push(`en2/${it.id}`);
+  if(it.sen) files.push(`sen2/${it.id}`);
   files.forEach(f => { if(!fs.existsSync(path.join(root, "audio", f + ".mp3"))) missing.push(f); });
 }));
+Object.keys(ev(`ACTS`)).forEach(id => { if(!fs.existsSync(path.join(root, "audio", "act", id + ".mp3"))) missing.push("act/" + id); });
 ev(`FX`).forEach(f => { if(!fs.existsSync(path.join(root, "audio", "fx", f.id + ".mp3"))) missing.push("fx/" + f.id); });
 assert.strictEqual(missing.length, 0, "missing audio: " + missing.join(","));
 
 const tick = () => new Promise(r => setImmediate(r));
-async function click(act, i = 0){
-  const t = {dataset: {act, i: String(i)}, classList: {add(){}, remove(){}}};
+async function click(act, i = 0, extra = {}){
+  const t = {dataset: Object.assign({act, i: String(i)}, extra), classList: {add(){}, remove(){}}};
   clickHandler({target: {closest: () => t}});
   await tick(); await tick();
 }
@@ -79,7 +86,10 @@ async function drive(o = {}){
   while(ev(`Q.i < Q.steps.length`)){
     if(++guard > 120) throw new Error("quest does not terminate");
     const step = ev(`Q.steps[Q.i]`);
+    if(o.stopAt && step.type === o.stopAt) return;          // let the caller inspect this step
     if(step.type === "teach"){ await click("q-next"); continue; }
+    if(step.type === "act"){ await click(o.skipAct ? "a-skip" : "a-done"); continue; }
+    if(step.type === "say"){ await click(o.sayNo ? "s-no" : "s-ok"); continue; }
     const cur = ev(`Q.cur`), choices = ev(`Q.choices`);
     const key = cur.en.toLowerCase();
     const right = choices.findIndex(c => c.en.toLowerCase() === key);
@@ -256,7 +266,7 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
     assert(J(ev(`played`)).flat().includes("audio/fx/fx_look_zh.mp3"), "2nd wrong: show and read the answer");
     await click("q-choose", ridx);
     assert.strictEqual(ev(`Q.steps.filter(s => s.retry).length`), 1, "missed word re-queued once");
-    assert.strictEqual(ev(`Q.steps.length`), 3);
+    assert.strictEqual(ev(`Q.steps.filter(s => s.type === "quiz").length`), 3);
     await drive();
     const other = k0 === "teacher" ? "vet" : "teacher";
     w = W(k0);
@@ -268,11 +278,208 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
     reset(); capNew();
     ["teacher", "vet"].forEach(k => seed(k, {box: 3, due: today(), right: 3, last: today() - 2, lastGood: today() - 2}));
     await runQuest({wrongFor: new Set(["teacher", "vet"])});
-    assert.strictEqual(ev(`Q.steps.length`), 4, "each miss is re-asked at most once");
+    assert.strictEqual(ev(`Q.steps.filter(s => s.type === "quiz").length`), 4, "each miss is re-asked at most once");
     assert.strictEqual(ev(`Q.steps.filter(s => s.retry).length`), 2);
     reset();
     ev(`parentPage()`);
     assert(/今天还没有新学的词/.test(ev(`app.innerHTML`)), "empty tip message");
+  }
+
+  /* ---------- less Chinese, second voice, say step, action step, story, learning-mode toggles ---------- */
+  {
+    const flatPlayed = () => J(ev(`played`)).flat();
+    const seedDue = (keys, o) => keys.forEach(k => seed(k, Object.assign({box: 3, due: today(), right: 3, last: today() - 2, lastGood: today() - 2}, o || {})));
+    const findLists = u => J(ev(`played`)).filter(l => l.includes(u)).length;
+
+    // --- Chinese: by default only on the new-word page ---
+    reset(); capNew(); seedDue(["teacher", "vet", "doctor", "nurse", "hose", "pole"]);
+    ev(`played.length = 0`);
+    await runQuest();
+    assert(flatPlayed().every(u => !/^audio\/zh\//.test(u)), "no Chinese translation after answers by default");
+    assert.strictEqual(findLists("audio/fx/fx_find_zh.mp3"), 2, "Chinese prompt only for the first 2 questions");
+    reset(); capNew(); ev(`SRS.cfg.zh = "all"`); seedDue(["teacher", "vet", "doctor", "nurse", "hose", "pole"]);
+    ev(`played.length = 0`);
+    await runQuest();
+    assert(flatPlayed().some(u => /^audio\/zh\//.test(u)), "'all' mode plays the translation");
+    assert.strictEqual(findLists("audio/fx/fx_find_zh.mp3"), ev(`Q.steps.filter(s => s.type === "quiz").length`), "'all' mode: Chinese prompt on every question");
+    reset(); ev(`played.length = 0`);
+    await runQuest();
+    assert(flatPlayed().some(u => /^audio\/zh\//.test(u)), "new-word page still plays the Chinese");
+
+    // --- second voice: review questions only, new words keep the first voice, repeat uses the same clip ---
+    reset(); capNew(); seedDue(["teacher", "vet", "hose"], {box: 2}); ev(`ALT_VOICE_P = 1`);
+    ev(`played.length = 0`);
+    await runQuest();
+    let fp = flatPlayed();
+    assert(fp.some(u => /^audio\/en2\//.test(u)), "review questions use the 2nd voice");
+    assert(!fp.some(u => /^audio\/en\//.test(u)), "...and only the 2nd voice");
+    reset(); ev(`played.length = 0`);
+    await runQuest();
+    fp = flatPlayed();
+    assert(fp.some(u => /^audio\/en\//.test(u)) && !fp.some(u => /^audio\/(en2|sen2)\//.test(u)), "new words keep the 1st voice");
+    reset(); capNew(); seedDue(["teacher"], {box: 3});
+    await click("quest");
+    assert.strictEqual(ev(`Q.voice`), 2);
+    ev(`played.length = 0`); await click("q-repeat");
+    assert.strictEqual(JSON.stringify(J(ev(`played`))), JSON.stringify([["audio/sen2/teacher.mp3"]]), "repeat keeps the voice (sentence version)");
+    ev(`ALT_VOICE_P = 0`);
+    ev(`SRS.cfg.enRate = 1.3; SRS.cfg.promptRate = 0.8`);
+    assert.strictEqual(ev(`rateFor({url: "audio/en2/hose.mp3"})`), 1.3);
+    assert.strictEqual(ev(`rateFor({url: "audio/sen2/teacher.mp3"})`), 1.3);
+    assert.strictEqual(ev(`rateFor({url: "audio/act/dancer.mp3"})`), 1.3);
+    assert.strictEqual(ev(`rateFor({url: "audio/fx/fx_say_zh.mp3"})`), 0.8);
+
+    // --- say step: only for level >= 4 due words, success = review pass, failure = no penalty + make-up question ---
+    ev(`SAY_CHANCE = 1`);
+    const sayWord = () => J(ev(`Q.steps`)).find(s => s.type === "say").it.en.toLowerCase();
+    const sayGroup = async () => { reset(); capNew(); seedDue(["teacher", "vet"], {box: 4, right: 4}); seedDue(["hose"], {box: 2}); await click("quest"); };
+    await sayGroup();
+    let sts = J(ev(`Q.steps`));
+    assert.strictEqual(sts.filter(s => s.type === "say").length, 1, "exactly one say step");
+    assert.strictEqual(sts.filter(s => s.type === "quiz").length, 2);
+    assert(["teacher", "vet"].includes(sayWord()), "say step only for level >= 4");
+    await drive({stopAt: "say"});
+    assert(/\u8bf4\u4e00\u8bf4/.test(ev(`app.innerHTML`)) && /s-ok/.test(ev(`app.innerHTML`)) && /s-no/.test(ev(`app.innerHTML`)), "say screen with parent buttons");
+    assert(!/data-act="q-choose"/.test(ev(`app.innerHTML`)), "no choices on the say screen");
+    ev(`played.length = 0`); await click("s-ok");
+    assert(flatPlayed().includes("audio/fx/fx_good_en.mp3"));
+    await drive();
+    let sw = sayWord(); w = W(sw);
+    assert.strictEqual(w.box, 5); assert.strictEqual(w.due, today() + 8); assert.strictEqual(w.rc, 1); assert.strictEqual(w.fg, 0);
+    assert.strictEqual(logOf().filter(e => e.k === sw).length, 1, "say success logged once");
+    assert(/3 \/ 3 \u4e2a/.test(ev(`app.innerHTML`)), "say counts as a question and a star: " + ev(`app.innerHTML`).match(/\u4e00\u6b21\u5c31\u7b54\u5bf9[^<]*/));
+    // can't be pressed twice / outside the step
+    await click("s-ok"); await click("s-no");
+
+    await sayGroup(); sw = sayWord();
+    await drive({sayNo: true});
+    w = W(sw);
+    assert.strictEqual(ev(`Q.steps.filter(s => s.fb).length`), 1, "one make-up question");
+    const iSay = J(ev(`Q.steps`)).findIndex(s => s.type === "say"), iFb = J(ev(`Q.steps`)).findIndex(s => s.fb);
+    const iAct = J(ev(`Q.steps`)).findIndex(s => s.type === "act");
+    assert(iFb > iSay && (iAct < 0 || iFb < iAct), "make-up question after the say step and before the action steps");
+    assert.strictEqual(w.fg, 0, "not being able to say it is not forgetting");
+    assert.strictEqual(w.box, 5, "make-up question answered right => normal review pass");
+    assert.strictEqual(logOf().filter(e => e.k === sw).length, 1, "only the make-up question is logged");
+    assert(/2 \/ 3 \u4e2a/.test(ev(`app.innerHTML`)), "make-up question is not counted twice");
+    await sayGroup(); sw = sayWord();
+    await drive({sayNo: true, wrongFor: new Set([sw])});
+    w = W(sw);
+    assert.strictEqual(w.box, 2); assert.strictEqual(w.due, today() + 1); assert.strictEqual(w.fg, 1, "missing the make-up question is a normal miss");
+    // not offered: low level, new words, switched off
+    reset(); capNew(); seedDue(["teacher", "vet"], {box: 3});
+    await click("quest");
+    assert.strictEqual(ev(`Q.steps.filter(s => s.type === "say").length`), 0, "no say step below level 4");
+    reset(); await click("quest");
+    assert.strictEqual(ev(`Q.steps.filter(s => s.type === "say").length`), 0, "no say step for new words");
+    await sayGroup(); ev(`SRS.cfg.say = false`); await click("quest");
+    assert.strictEqual(ev(`Q.steps.filter(s => s.type === "say").length`), 0, "say switched off");
+    ev(`SAY_CHANCE = 0`);
+
+    // --- action step: at the end, from today's words, no scoring ---
+    reset();
+    await runQuest();
+    sts = J(ev(`Q.steps`));
+    const acts = sts.filter(s => s.type === "act"), newWords = sts.filter(s => s.type === "teach").map(s => s.it.en);
+    assert.strictEqual(acts.length, 2, "two action steps");
+    assert(acts.every(a => newWords.includes(a.it.en)), "action words come from today's new words");
+    assert(sts.slice(-2).every(s => s.type === "act"), "action steps are last");
+    assert.strictEqual(logOf().length, 6, "action steps are not logged");
+    assert(flatPlayed().includes("audio/act/fire_station.mp3") && flatPlayed().includes("audio/fx/fx_act_zh.mp3"));
+    reset(); capNew(); seedDue(["teacher", "vet", "doctor"]);
+    await click("quest");
+    await drive({stopAt: "act"});
+    assert(/\u52a8\u4e00\u52a8/.test(ev(`app.innerHTML`)) && /Show me a/.test(ev(`app.innerHTML`)) && /a-done/.test(ev(`app.innerHTML`)));
+    const actId = ev(`Q.cur.id`);
+    ev(`played.length = 0`); await click("a-say");
+    assert.strictEqual(JSON.stringify(J(ev(`played`))), JSON.stringify([[`audio/act/${actId}.mp3`]]), "replay the command");
+    const snapAct = JSON.stringify(ev(`SRS.words`));
+    await click("a-skip");
+    assert.strictEqual(JSON.stringify(ev(`SRS.words`)), snapAct, "action step does not touch the schedule");
+    assert.strictEqual(ev(`Q.step.type`), "act", "second action step follows");
+    await click("a-done");
+    assert(/\u4efb\u52a1\u5b8c\u6210/.test(ev(`app.innerHTML`)));
+    reset(); capNew(); seedDue(["teacher", "vet", "doctor"]); ev(`SRS.cfg.act = false`);
+    await runQuest();
+    assert.strictEqual(ev(`Q.steps.filter(s => s.type === "act").length`), 0, "action step switched off");
+    // every word has a command
+    pool.forEach(p => assert(ev(`ACTS[${JSON.stringify(p.id)}]`), "ACTS entry for " + p.en));
+
+    // --- story: locked until the unit's words are learned ---
+    reset(); ev(`S = null`);
+    let hh = ev(`homeQuestHtml()`);
+    assert(/\ud83d\udd12/.test(hh) && /0\/7/.test(hh) && !/data-act="story"/.test(hh), "story locked at first");
+    await click("story", 0);
+    assert.strictEqual(ev(`S`), null, "locked story does not start");
+    ["fire station", "alarm bell", "firefighter", "hose", "save", "cheer"].forEach(k => seed(k, {box: 1}));
+    assert(/6\/7/.test(ev(`homeQuestHtml()`)));
+    seed("pole", {box: 0});
+    assert(/6\/7/.test(ev(`homeQuestHtml()`)), "level 0 does not count");
+    seed("pole", {box: 1});
+    hh = ev(`homeQuestHtml()`);
+    assert(/data-act="story" data-i="0"/.test(hh) && !/\ud83d\udd12/.test(hh), "story unlocked");
+    ev(`played.length = 0`);
+    await click("story", 0);
+    let st0 = J(ev(`S`));
+    assert.strictEqual(st0.lines.length, 3); assert(st0.order.some((v, i) => v !== i), "start order is shuffled");
+    assert.strictEqual(JSON.stringify(st0.order.slice().sort()), "[0,1,2]");
+    const storyUrls = flatPlayed().filter(u => /^audio\/en\/s_/.test(u));
+    assert.strictEqual(storyUrls.join(), "audio/en/s_alarm.mp3,audio/en/s_reach.mp3,audio/en/s_out.mp3", "story is played in order");
+    assert.strictEqual((ev(`app.innerHTML`).match(/data-act="st-pick"/g) || []).length, 3);
+    ev(`played.length = 0`); await click("st-pick", 2);                       // wrong: not the first
+    assert.strictEqual(ev(`S.miss`), 1); assert.strictEqual(ev(`S.next`), 0);
+    assert(flatPlayed().includes("audio/fx/fx_try_en.mp3") && flatPlayed().filter(u => /^audio\/en\/s_/.test(u)).length === 3, "wrong: try again and replay the whole story");
+    await click("st-pick", 0); await click("st-pick", 0);                      // second tap on a finished card does nothing
+    assert.strictEqual(ev(`S.next`), 1); assert.strictEqual(ev(`S.miss`), 1);
+    await click("st-pick", 1);
+    assert.strictEqual(ev(`S.next`), 2); assert(!/\u6545\u4e8b\u8bb2\u5b8c\u5566/.test(ev(`app.innerHTML`)));
+    await click("st-pick", 2);
+    assert(/\u6545\u4e8b\u8bb2\u5b8c\u5566/.test(ev(`app.innerHTML`)), "story finished");
+    assert.strictEqual(ev(`SRS.story.fire`), 1);
+    assert.strictEqual((ev(`app.innerHTML`).match(/\u2b50/g) || []).length, 2, "1 miss => 2 stars");
+    assert(/\u70b9\u9519 1 \u6b21/.test(ev(`app.innerHTML`)));
+    await click("st-pick", 0);                                                // locked after finishing
+    assert.strictEqual(ev(`SRS.story.fire`), 1);
+    await click("st-again");
+    st0 = J(ev(`S`)); assert.strictEqual(st0.miss, 0);
+    await click("st-pick", 0); await click("st-pick", 1); await click("st-pick", 2);
+    assert.strictEqual(ev(`SRS.story.fire`), 2);
+    assert.strictEqual((ev(`app.innerHTML`).match(/\u2b50/g) || []).length, 3, "no miss => 3 stars");
+    assert(/\u4e00\u6b21\u5c31\u6392\u5bf9/.test(ev(`app.innerHTML`)));
+    assert(/\u5df2\u5b8c\u6210 2 \u6b21/.test(ev(`homeQuestHtml()`)));
+    ev(`parentPage()`);
+    assert(/\u542c\u6545\u4e8b\u6392\u987a\u5e8f/.test(ev(`app.innerHTML`)) && /\u5b8c\u6210 2 \u6b21/.test(ev(`app.innerHTML`)), "parent page shows story count");
+    assert.strictEqual(JSON.parse(ev(`backupText()`)).story.fire, 2, "story count is in the backup");
+    ev(`SRS = normSRS({words: {}, story: {fire: 3, x: -2, y: "a", z: 1.7}})`);
+    assert.strictEqual(JSON.stringify(ev(`SRS.story`)), JSON.stringify({fire: 3, z: 1}), "story counts are sanitised");
+    ev(`SRS = normSRS({words: {}, story: "junk"})`); assert.strictEqual(JSON.stringify(ev(`SRS.story`)), "{}");
+    // story data sanity
+    ev(`STORIES`).forEach(s => s.lines.forEach(id => assert(ev(`itemById(${JSON.stringify(id)})`), "story line " + id)));
+
+    // --- learning-mode toggles on the parent page ---
+    reset(); ev(`parentPage()`);
+    let tp = ev(`app.innerHTML`);
+    assert(/\u5b66\u4e60\u65b9\u5f0f/.test(tp) && /data-k="zh" data-v="all"/.test(tp) && /data-k="say" data-v="0"/.test(tp) && /data-k="act" data-v="0"/.test(tp));
+    assert(/small-btn on" data-act="p-set" data-k="zh" data-v="new"/.test(tp), "defaults: Chinese only on new words");
+    assert(/small-btn on" data-act="p-set" data-k="say" data-v="1"/.test(tp) && /small-btn on" data-act="p-set" data-k="act" data-v="1"/.test(tp), "defaults: say and act on");
+    await click("p-set", 0, {k: "zh", v: "all"});
+    assert.strictEqual(ev(`SRS.cfg.zh`), "all"); assert.strictEqual(ev(`zhAll()`), true);
+    assert(/small-btn on" data-act="p-set" data-k="zh" data-v="all"/.test(ev(`app.innerHTML`)), "page re-rendered with the new state");
+    await click("p-set", 0, {k: "say", v: "0"}); await click("p-set", 0, {k: "act", v: "0"});
+    assert.strictEqual(ev(`SRS.cfg.say`), false); assert.strictEqual(ev(`SRS.cfg.act`), false);
+    await click("p-set", 0, {k: "bogus", v: "1"}); await click("p-set", 0, {k: "zh", v: "weird"});
+    assert.strictEqual(ev(`SRS.cfg.zh`), "new", "unknown values fall back to the default");
+    assert.strictEqual(JSON.parse(store.abc_srs_v1).cfg.say, false, "saved");
+    await click("p-set", 0, {k: "zh", v: "all"});
+    await click("p-reset");
+    assert.strictEqual(ev(`SRS.cfg.zh`), "all"); assert.strictEqual(ev(`SRS.cfg.say`), false, "reset keeps the toggles");
+    ev(`SRS = normSRS(${JSON.stringify(JSON.parse(ev(`backupText()`)))})`);
+    assert.strictEqual(ev(`SRS.cfg.act`), false, "toggles survive backup / import");
+    ev(`SRS = normSRS({words: {}, cfg: {zh: "banana", say: false, act: false}})`);
+    assert.strictEqual(ev(`SRS.cfg.zh`), "new"); assert.strictEqual(ev(`SRS.cfg.say`), false); assert.strictEqual(ev(`SRS.cfg.act`), false);
+    ev(`SRS = normSRS({words: {}, cfg: {newPerDay: 3}})`);          // old save without the new keys
+    assert.strictEqual(ev(`SRS.cfg.zh`), "new"); assert.strictEqual(ev(`SRS.cfg.say`), true); assert.strictEqual(ev(`SRS.cfg.act`), true);
+    reset();
   }
 
   /* ---------- forgetting curve: buckets, aggregation, chart ---------- */

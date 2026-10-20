@@ -50,6 +50,12 @@
   .choices.w{grid-template-columns:1fr 1fr 1fr}
   .choices.w .card{min-height:130px}
   .choices.w4{grid-template-columns:1fr 1fr}
+  .choices.story .card{min-height:120px}
+  .choices.story .emoji{font-size:38px}
+  .card{position:relative}
+  .badge{position:absolute; top:6px; left:10px; font-size:24px; color:#2e7d32; font-weight:700}
+  .big.locked{background:#e0e0e0; color:#757575; box-shadow:0 5px 0 #bdbdbd; border-radius:18px; font-size:20px}
+  .row .ok{background:#43a047; box-shadow:0 4px 0 #2e7d32}
   .card.hint{background:#fffde7; box-shadow:0 0 0 5px #ffd54f, 0 5px 0 #ffb300; animation:glow .8s infinite}
   @keyframes glow{50%{transform:scale(1.07)}}
   .card.correct{background:#c8f7c5; box-shadow:0 5px 0 #85c98a; animation:pop .5s}
@@ -127,9 +133,9 @@
 <div id="app"></div>
 <div id="detail"><div class="panel" id="panel"></div></div>
 
-<script src="data.js?v=12"></script>
-<script src="speak.js?v=12"></script>
-<script src="srs.js?v=12"></script>
+<script src="data.js?v=13"></script>
+<script src="speak.js?v=13"></script>
+<script src="srs.js?v=13"></script>
 <script>
 /* ============ 语音播放 ============
    微信内置浏览器不支持 speechSynthesis，所以用预先生成的 mp3 + 单个 Audio 元素
@@ -185,10 +191,15 @@ async function playSeq(list){
 // 微信 iOS：JSBridge 就绪后再预热一次
 document.addEventListener("WeixinJSBridgeReady", ()=>{ try{ player.load(); }catch(e){} });
 
-const enClip  = it => clip("en", it.id, it.en, "en");
+// v === 2 用第二个英文声音（en2 / sen2），其余用默认声音
+const enClip  = (it, v) => clip(v === 2 ? "en2" : "en", it.id, it.en, "en");
 const zhClip  = it => clip("zh", it.id, it.zh, "zh");
-const senClip = it => clip("sen", it.id, it.sen, "en");
+const senClip = (it, v) => clip(v === 2 ? "sen2" : "sen", it.id, it.sen, "en");
 const senZhClip = it => clip("senzh", it.id, it.senZh, "zh");
+// “动一动”的英语指令（data.js 的 ACTS）
+const actClip = it => { const a = (typeof ACTS !== "undefined") && ACTS[it.id]; return clip("act", it.id, a ? a.en : it.en, "en"); };
+// 家长页里的“中文翻译”设置（srs.js 的 zhAll）；读不到设置时保持原来的每题都播中文
+const showZh = () => { try{ return zhAll(); }catch(e){ return true; } };
 const fx = id => { const f = FX.find(x=>x.id===id); return f ? clip("fx", id, f.text, f.lang) : null; };  // 找不到（比如缓存了旧 data.js）就跳过，不影响游戏
 
 /* ============ 基础 ============ */
@@ -295,7 +306,7 @@ function round(){
           <div class="emoji">${c.emoji}</div>
         </div>`).join("")}
     </div>`;
-  playSeq([fx("fx_find_zh"), ...promptClips(it)]);
+  playSeq([...(ri < 2 || showZh() ? [fx("fx_find_zh")] : []), ...promptClips(it)]);     // 中文提示只在前 2 题播
 }
 async function choose(i, el){
   if(locked) return;
@@ -305,7 +316,7 @@ async function choose(i, el){
     el.classList.add("correct");
     if(!missed) stars++;
     const s = session;
-    await playSeq([fx("fx_good_en"), fx("fx_good_zh"), enClip(it), zhClip(it)]);
+    await playSeq(showZh() ? [fx("fx_good_en"), fx("fx_good_zh"), enClip(it), zhClip(it)] : [fx("fx_good_en"), enClip(it)]);
     if(s !== session) return;   // 中途已退出本局
     ri++;
     ri < rounds.length ? round() : finish();

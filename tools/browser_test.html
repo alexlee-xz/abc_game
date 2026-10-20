@@ -68,7 +68,7 @@ f.addEventListener("load", async () => {
   const res = d.getElementById("recres").textContent;
   log.push("rec stars: " + (res.match(/⭐/g) || []).length + " / 3, text length " + res.length);
   // 4-choice layout, hint after two wrong taps, retry queued, finish-page tips, SVG pictures in the garden
-  click('[data-act="home"]'); await sleep(100);
+  w.eval("home()"); await sleep(100);
   w.eval(`SRS = freshSRS(); ["teacher","vet","doctor","nurse","hose"].forEach(k => SRS.words[k] = Object.assign(newWord(todayNum()), {box: 3, due: todayNum(), lastGood: todayNum() - 2, last: todayNum() - 2}));
           SRS.daily = {day: todayNum(), newCount: 99, done: false, news: []}; saveSRS(); home();`);
   click('[data-act="quest"]'); await sleep(300);
@@ -85,6 +85,36 @@ f.addEventListener("load", async () => {
   w.eval("garden()"); await sleep(100);
   const svgs = d.querySelectorAll(".card.mini .emoji svg");
   log.push("garden svg pictures: " + svgs.length + " (expect 2: pole + hose), width " + (svgs[0] ? Math.round(svgs[0].getBoundingClientRect().width) : 0));
+  // story: locked at first, then unlocked, cards in the real layout, numbered badges, finish page
+  w.eval(`SRS = freshSRS(); saveSRS(); home();`); await sleep(100);
+  log.push("story locked on a fresh save: " + !!d.querySelector(".big.locked") + " | no story button: " + !d.querySelector('[data-act="story"]'));
+  w.eval(`["fire station","alarm bell","firefighter","hose","save","cheer","pole"].forEach(k => SRS.words[k] = Object.assign(newWord(todayNum()), {box: 1, due: todayNum() + 1, lastGood: todayNum()})); saveSRS(); home();`); await sleep(100);
+  log.push("story button after learning the unit: " + !!d.querySelector('[data-act="story"]'));
+  click('[data-act="story"]'); await sleep(300);
+  const stc = [...d.querySelectorAll('[data-act="st-pick"]')];
+  log.push("story cards: " + stc.length + " grid=" + w.getComputedStyle(d.querySelector(".choices")).gridTemplateColumns + " badgePos=" + w.getComputedStyle(d.querySelector(".badge")).position);
+  for(const k of [0, 1]){ d.querySelector('[data-act="st-pick"][data-i="' + k + '"]').click(); await sleep(150); }
+  log.push("badges after 2 right taps: " + [...d.querySelectorAll(".badge")].map(b => b.textContent).filter(Boolean).join(""));
+  d.querySelector('[data-act="st-pick"][data-i="2"]').click(); await sleep(900);
+  log.push("story finished: " + d.getElementById("app").innerText.includes("故事讲完啦") + " | count=" + w.eval("SRS.story.fire"));
+  // say screen and action screen in the real DOM
+  w.eval(`SRS = freshSRS(); ["teacher","vet"].forEach(k => SRS.words[k] = Object.assign(newWord(todayNum()), {box: 4, due: todayNum(), lastGood: todayNum() - 3, last: todayNum() - 3}));
+          SRS.daily = {day: todayNum(), newCount: 99, done: false, news: []}; saveSRS(); SAY_CHANCE = 1; home();`);
+  click('[data-act="quest"]'); await sleep(300);
+  w.eval("session++; Q.i = Q.steps.findIndex(s => s.type === 'say'); questStep()"); await sleep(200);
+  const sayEn = d.getElementById("say-en");
+  log.push("say screen: buttons=" + (!!d.querySelector('[data-act="s-ok"]') && !!d.querySelector('[data-act="s-no"]')) + " answerHidden=" + (w.getComputedStyle(sayEn).visibility === "hidden") + " choices=" + d.querySelectorAll('[data-act="q-choose"]').length);
+  d.querySelector('[data-act="s-ok"]').click(); await sleep(200);
+  log.push("say answered: answerVisible=" + (w.getComputedStyle(sayEn).visibility === "visible") + " feedback='" + d.getElementById("fb").textContent + "' box=" + w.eval("SRS.words.teacher.box + ',' + SRS.words.vet.box"));
+  w.eval("session++; Q.i = Q.steps.findIndex(s => s.type === 'act'); questStep()"); await sleep(200);
+  log.push("act screen: " + d.querySelector(".card.teach .en").textContent + " | hint: " + d.querySelector(".card.teach .zh").textContent + " | buttons=" + d.querySelectorAll('[data-act="a-done"],[data-act="a-skip"],[data-act="a-say"]').length);
+  d.querySelector('[data-act="a-done"]').click(); await sleep(400);
+  log.push("after act: " + (d.querySelector(".card.teach .en") ? d.querySelector(".card.teach .en").textContent : d.getElementById("app").innerText.slice(0, 20).replace(/\n/g, " ")));
+  w.eval("SAY_CHANCE = 0");
+  // parent page toggles: click and keep scroll position
+  w.eval("parentPage()"); await sleep(100);
+  d.querySelector('[data-act="p-set"][data-k="zh"][data-v="all"]').click(); await sleep(100);
+  log.push("zh toggle: cfg=" + w.eval("SRS.cfg.zh") + " | on button: " + d.querySelector('[data-act="p-set"][data-k="zh"].on').dataset.v);
   w.eval("SRS = freshSRS(); saveSRS();");
   out.textContent = log.join("\n");
   document.title = "DONE";
