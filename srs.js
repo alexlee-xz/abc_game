@@ -12,6 +12,9 @@ const NEW_MIN = 1, NEW_MAX = 20, NEW_DEFAULT = 3;
 const RATE_MIN = 0.5, RATE_MAX = 2.0;
 const MAX_DUE = 10;        // 每组最多复习几个旧词（多出来的留到下一组/明天，最久没复习的优先）
 const MIN_Q = 10;         // 每组至少几题（不够时用“巩固题”补齐）
+const HARD_BOX = 2;       // 等级到 🌿 以后改成 4 选 1，并优先放容易混淆的干扰项（减少猜对）
+const SEN_BOX = 3;        // 等级到 🪴 以后，有句子的词改听整句 “I can be a ___.”，低等级只听单词
+const RETRY_GAP = 3;      // 答错的词，隔几题后再考一次（只练习，不改复习计划）
 const LEGACY_NEW = [2, 3, 4];     // 旧版“少/标准/多”三档对应的每天新词数
 const SLOW_MS = 9000;     // 听完题目后超过 9 秒才点，算“犹豫”（不稳）
 const LOG_MAX = 400;      // 逐题记录最多保留最近 400 条
@@ -29,7 +32,7 @@ function normCurve(c){
 }
 
 const freshSRS = () => ({
-  words: {}, daily: {day: 0, newCount: 0, done: false},
+  words: {}, daily: {day: 0, newCount: 0, done: false, news: []},   // news：今天新学的词
   doneDays: [], streak: 0, lastDone: 0,
   cfg: {newPerDay: NEW_DEFAULT, enRate: 1, promptRate: 1},
   curve: freshCurve(),   // 遗忘曲线汇总：每个“隔了几天”档 [测试次数, 第一次就点对次数]
@@ -80,7 +83,8 @@ function todayNum(){
 function dayLabel(n){ const d = new Date(n * 86400000); return (d.getUTCMonth() + 1) + "/" + d.getUTCDate(); }
 function dailyState(){
   const t = todayNum();
-  if(SRS.daily.day !== t) SRS.daily = {day: t, newCount: 0, done: false};
+  if(SRS.daily.day !== t) SRS.daily = {day: t, newCount: 0, done: false, news: []};
+  if(!Array.isArray(SRS.daily.news)) SRS.daily.news = [];
   return SRS.daily;
 }
 const wkey = it => it.en.toLowerCase();
@@ -124,6 +128,53 @@ function buildQueue(){
     .slice(0, MAX_DUE);
   const news = pool.filter(it => !SRS.words[wkey(it)]).slice(0, Math.max(0, newPerDay() - d.newCount));
   return {due, news};
+}
+
+/* ---------- 选项和提示：难度随等级提高 ----------
+   新词、低等级词：3 选 1、只听单词。
+   等级≥ HARD_BOX：4 选 1，其中最多 2 个是容易混的词（data.js 的 CONFUSE），仍留随机项。
+   等级≥ SEN_BOX：有句子的词改听整句。 */
+function confusables(k){
+  const set = new Set();
+  if(typeof CONFUSE === "undefined") return set;
+  (CONFUSE[k] || []).forEach(x => set.add(x));
+  Object.keys(CONFUSE).forEach(j => { if(CONFUSE[j].includes(k)) set.add(j); });
+  return set;
+}
+const boxOf = it => { const w = SRS.words[wkey(it)]; return w ? w.box : 0; };
+function pickChoices(it){
+  const k = wkey(it), n = boxOf(it) >= HARD_BOX ? 4 : 3;
+  const rest = questPool().filter(p => wkey(p) !== k);
+  let others;
+  if(n === 4){
+    const like = confusables(k);
+    const near = shuffle(rest.filter(p => like.has(wkey(p)))).slice(0, 2);
+    others = near.concat(shuffle(rest.filter(p => !near.includes(p)))).slice(0, n - 1);
+  }else others = shuffle(rest).slice(0, n - 1);
+  return shuffle([it, ...others]);
+}
+const useSen = it => !!it.sen && boxOf(it) >= SEN_BOX;
+const qPrompt = () => [Q.sent ? senClip(Q.cur) : enClip(Q.cur)];
+
+/* ---------- 家长小任务：今天新学的词 + 今天答错过的词，附生活里怎么用 ---------- */
+const tipOf = it => (typeof TIPS !== "undefined" && TIPS[wkey(it)]) || `在生活里找一找“${it.zh}”，问孩子：What is it?`;
+function todayTipItems(max){
+  const t = todayNum(), d = dailyState(), pool = questPool(), out = [];
+  const add = (k, tag) => {
+    const it = pool.find(p => wkey(p) === k);
+    if(it && !out.some(o => o.it === it)) out.push({it, tag});
+  };
+  d.news.forEach(k => add(k, "新词"));
+  SRS.log.filter(r => r.d === t && !r.ok).forEach(r => add(r.k, "今天答错过"));
+  return out.slice(0, max);
+}
+function tipSection(title, empty){
+  const items = todayTipItems(4);
+  if(!items.length) return empty ? `<div class="sec"><h3>${title}</h3><div class="note">${empty}</div></div>` : "";
+  return `<div class="sec"><h3>${title}</h3>` +
+    `<div class="note" style="margin-bottom:4px">在生活里用一用，比多做几道题更管用：</div>` +
+    items.map(o => `<div class="tip"><b><span class="temo">${o.it.emoji}</span> ${o.it.en}　${o.it.zh}</b> <span class="tag">${o.tag}</span>` +
+      `<div class="note">${tipOf(o.it)}</div></div>`).join("") + `</div>`;
 }
 
 /* ---------- 每个词的记录 ---------- */
@@ -286,7 +337,7 @@ function questTeach(it, pre){
   const d = dailyState(), k = wkey(it);
   if(!SRS.words[k]){
     SRS.words[k] = newWord(todayNum());
-    d.newCount++; saveSRS();
+    d.newCount++; d.news.push(k); saveSRS();
   }
   Q.cur = it;
   app.innerHTML = `
@@ -317,10 +368,9 @@ function promptThen(list){
 
 function questQuiz(s, pre){
   const it = s.it;
-  const others = shuffle(questPool().filter(p => wkey(p) !== wkey(it))).slice(0, 2);
-  Q.cur = it; Q.step = s; Q.choices = shuffle([it, ...others]);
-  Q.locked = false; Q.review = !!s.review; Q.tries = 0; Q.ms = 0;
-  const hint = s.extra ? "" : s.probe === 2 ? "🔁 再考一次，加油！"
+  Q.cur = it; Q.step = s; Q.choices = pickChoices(it); Q.sent = useSen(it);
+  Q.locked = false; Q.review = !!s.review; Q.tries = 0; Q.ms = 0; Q.wrongs = 0;
+  const hint = s.retry ? "🔁 刚才答错的，再来一次" : s.extra ? "" : s.probe === 2 ? "🔁 再考一次，加油！"
     : (s.review && Q.mode === "quest" ? "💧 小树渴了，答对就浇水" : "");
   app.innerHTML = `
     <div class="top"><button class="back" data-act="home">← 返回</button><span></span></div>
@@ -328,11 +378,20 @@ function questQuiz(s, pre){
     <h2>🎧 听一听，找一找</h2>
     <button class="speaker" data-act="q-repeat">🔊</button>
     <div class="fb" id="fb">${hint}</div>
-    <div class="choices w">
+    <div class="choices w${Q.choices.length > 3 ? " w4" : ""}">
       ${Q.choices.map((c, i) => `
         <div class="card" data-act="q-choose" data-i="${i}"><div class="emoji">${c.emoji}</div></div>`).join("")}
     </div>`;
-  promptThen([...pre, fx("fx_find_zh"), ...promptClips(it)]);
+  promptThen([...pre, s.retry ? fx("fx_again_zh") : fx("fx_find_zh"), ...qPrompt()]);
+}
+
+// 答错的词：隔 RETRY_GAP 题后再考一次。这次只算练习（extra），不改复习计划、不计入遗忘统计
+function requeueMiss(it){
+  const k = wkey(it), st = Q.steps;
+  const same = x => x && x.type === "quiz" && wkey(x.it) === k;
+  let at = Math.min(st.length, Q.i + 1 + RETRY_GAP);
+  while(at < st.length && (same(st[at - 1]) || same(st[at]))) at++;     // 不跟同一个词紧挨着
+  st.splice(at, 0, {type: "quiz", it, review: false, probe: 0, need: 0, extra: true, retry: true});
 }
 
 async function qChoose(i, el){
@@ -343,16 +402,27 @@ async function qChoose(i, el){
   if(wkey(c) !== wkey(it)){
     el.classList.add("wrong");
     setTimeout(() => el.classList.remove("wrong"), 500);
-    playSeq([fx("fx_try_en"), ...promptClips(it)]);
+    Q.wrongs++;
+    if(Q.wrongs >= 2){
+      // 连续点错 2 次：把正确的图亮出来，带孩子读一遍，免得乱点泄气
+      const ci = Q.choices.findIndex(x => wkey(x) === wkey(it));
+      const right = app.querySelector && app.querySelector(`[data-act="q-choose"][data-i="${ci}"]`);
+      if(right) right.classList.add("hint");
+      playSeq([fx("fx_look_zh"), enClip(it), enClip(it)]);
+    }else{
+      playSeq([fx("fx_try_en"), ...qPrompt()]);
+    }
     return;
   }
   Q.locked = true;
+  el.classList.remove("hint");
   el.classList.add("correct");
-  const first = Q.tries === 1;
-  if(first) Q.stars++;
+  const first = Q.tries === 1, retry = !!Q.step.retry;
+  if(first && !retry) Q.stars++;
   const r = applyResult(Q.step, first, Q.ms, Q.tries);
+  if(!first && !retry) requeueMiss(it);
   const fb = document.getElementById("fb");
-  if(fb) fb.textContent = feedbackText(r);
+  if(fb) fb.textContent = retry ? (first ? "这次答对啦 👍" : "") : feedbackText(r);
   const list = [fx("fx_good_en"), enClip(it), zhClip(it)];
   if(r.kind === "up" && Q.review) list.push(fx("fx_water_zh"));
   const s = session;
@@ -372,12 +442,13 @@ function questFinish(){
     SRS.doneDays = SRS.doneDays.slice(-60);
   }
   saveSRS();
-  const total = Q.steps.filter(s => s.type === "quiz").length;
+  const total = Q.steps.filter(s => s.type === "quiz" && !s.retry).length;     // “再考一次”不算在题数里
   app.innerHTML = `
     <div class="top"><span></span><span></span></div>
     <h1>🎉 今天的任务完成啦！</h1>
     <div class="stars">${"⭐".repeat(Q.stars) || "🌟"}</div>
     <div class="sub">一次就答对 ${Q.stars} / ${total} 个 · 🔥 连续 ${currentStreak()} 天</div>
+    ${tipSection("👨‍👩‍👧 家长小任务")}
     <button class="big green" data-act="garden">🌳 看小花园</button>
     <button class="big blue" data-act="quest">➕ 再练一组</button>
     <button class="big" data-act="home">🏠 回到首页</button>`;
@@ -490,6 +561,7 @@ function parentPage(){
       ${line("今天还可学新词", q.news.length + " 个")}
       ${line("连续打卡", currentStreak() + " 天")}
     </div>
+    ${tipSection("今日家长小任务", "今天还没有新学的词，也没有答错过的词。完成魔法任务后这里会列出今天该在生活里用一用的词。")}
     <div class="sec"><h3>学习进度</h3>
       ${line("已学 / 总词数", s.planted + " / " + s.total)}
       ${line("已长成苹果树 🍎", s.mastered + " 个")}
@@ -531,7 +603,7 @@ function parentPage(){
       <button class="small-btn ghost" data-act="p-reset">清空进度</button>
     </div>
     <div class="sec"><h3>复习规则</h3>
-      <div class="note">学会后在第 1、2、4、7、15 天各复习一次。新词要在同一天连续两次第一次就点对，而且没有犹豫太久（听完后 9 秒内），才算学会、小树长大；犹豫的算不稳，不升级；点错会降级，明天再练。每天新词数和语速可在上面调整。</div>
+      <div class="note">学会后在第 1、2、4、7、15 天各复习一次。新词要在同一天连续两次第一次就点对，而且没有犹豫太久（听完后 9 秒内），才算学会、小树长大；犹豫的算不稳，不升级；点错会降级，明天再练。词长到 🌿 以后改成 4 选 1，到 🪴 以后有句子的词改听整句。答错的词隔几题后会再考一次（只算练习，不影响复习日程和统计）；连点错 2 次会把正确的图亮出来带孩子读。每天新词数和语速可在上面调整。</div>
     </div>`;
   document.getElementById("bk").value = backupText();
 }
@@ -545,7 +617,7 @@ document.addEventListener("click", e => {
     case "quest":    startQuest(); break;
     case "q-next":   Q.i++; questStep(); break;
     case "q-say":    if(Q && Q.cur) playSeq(teachClips(Q.cur)); break;
-    case "q-repeat": if(Q && !Q.locked && Q.step && Q.step.type === "quiz") promptThen(promptClips(Q.cur)); break;
+    case "q-repeat": if(Q && !Q.locked && Q.step && Q.step.type === "quiz") promptThen(qPrompt()); break;
     case "q-choose": qChoose(i, t); break;
     case "garden":   garden(); break;
     case "g-say": {

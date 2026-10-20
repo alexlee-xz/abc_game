@@ -67,6 +67,25 @@ f.addEventListener("load", async () => {
   click('#panel button.rec'); await sleep(600);
   const res = d.getElementById("recres").textContent;
   log.push("rec stars: " + (res.match(/⭐/g) || []).length + " / 3, text length " + res.length);
+  // 4-choice layout, hint after two wrong taps, retry queued, finish-page tips, SVG pictures in the garden
+  click('[data-act="home"]'); await sleep(100);
+  w.eval(`SRS = freshSRS(); ["teacher","vet","doctor","nurse","hose"].forEach(k => SRS.words[k] = Object.assign(newWord(todayNum()), {box: 3, due: todayNum(), lastGood: todayNum() - 2, last: todayNum() - 2}));
+          SRS.daily = {day: todayNum(), newCount: 99, done: false, news: []}; saveSRS(); home();`);
+  click('[data-act="quest"]'); await sleep(300);
+  const cards = d.querySelectorAll('[data-act="q-choose"]');
+  log.push("level-3 quiz: cards=" + cards.length + " grid=" + w.getComputedStyle(d.querySelector(".choices")).gridTemplateColumns + " sentencePrompt=" + w.eval("Q.sent"));
+  const ri = w.eval("Q.choices.findIndex(c => c.en === Q.cur.en)"), wi = ri === 0 ? 1 : 0;
+  cards[wi].click(); await sleep(100); cards[wi].click(); await sleep(100);
+  log.push("hint on the right card after 2 wrong taps: " + cards[ri].classList.contains("hint"));
+  cards[ri].click(); await sleep(300);
+  log.push("retry queued: " + w.eval("Q.steps.filter(s => s.retry).length") + " (expect 1)");
+  // session++ cancels the pending "next question" continuation of the last tap
+  w.eval("session++; questFinish()"); await sleep(100);
+  log.push("finish page tips: " + d.querySelectorAll(".tip").length + " | has section: " + d.getElementById("app").innerText.includes("家长小任务"));
+  w.eval("garden()"); await sleep(100);
+  const svgs = d.querySelectorAll(".card.mini .emoji svg");
+  log.push("garden svg pictures: " + svgs.length + " (expect 2: pole + hose), width " + (svgs[0] ? Math.round(svgs[0].getBoundingClientRect().width) : 0));
+  w.eval("SRS = freshSRS(); saveSRS();");
   out.textContent = log.join("\n");
   document.title = "DONE";
 });

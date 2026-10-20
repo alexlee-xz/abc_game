@@ -72,6 +72,9 @@ async function click(act, i = 0){
 async function runQuest(o = {}){
   ev(`app.innerHTML=''`);
   await click("quest");
+  await drive(o);
+}
+async function drive(o = {}){
   let guard = 0;
   while(ev(`Q.i < Q.steps.length`)){
     if(++guard > 120) throw new Error("quest does not terminate");
@@ -80,8 +83,10 @@ async function runQuest(o = {}){
     const cur = ev(`Q.cur`), choices = ev(`Q.choices`);
     const key = cur.en.toLowerCase();
     const right = choices.findIndex(c => c.en.toLowerCase() === key);
-    assert(right >= 0 && choices.length === 3, "bad choices");
-    assert.strictEqual(new Set(choices.map(c => c.en)).size, 3, "duplicate choices");
+    const box = (ev(`SRS.words[${JSON.stringify(key)}]`) || {box: 0}).box;
+    const n = box >= 2 ? 4 : 3;       // level 2 (🌿) and up: 4 choices
+    assert(right >= 0 && choices.length === n, `bad choices for ${key} box ${box}: ${choices.length}`);
+    assert.strictEqual(new Set(choices.map(c => c.en)).size, n, "duplicate choices");
     if(o.slow && o.slow(step, key)) ev(`__advanceMs(12000)`);
     const wantWrong = (o.wrongFor && o.wrongFor.has(key)) || (o.wrong && o.wrong(step, key));
     if(wantWrong){
@@ -125,6 +130,10 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
   lg.forEach(e => { assert.strictEqual(e.c, "l"); assert.strictEqual(e.ok, 1); assert.strictEqual(e.n, 1); assert.strictEqual(e.ms, 0); });
   assert.strictEqual(lg.filter(e => e.p === 1).length, 3); assert.strictEqual(lg.filter(e => e.p === 2).length, 3);
   assert.strictEqual(ev(`SRS.streak`), 1);
+  // finish page: parent tips for the 3 new words
+  const fin = ev(`app.innerHTML`);
+  assert(/家长小任务/.test(fin) && (fin.match(/class="tip"/g) || []).length === 3, "finish page lists the 3 new words with tips");
+  assert.strictEqual(ev(`SRS.daily.news.length`), 3);
 
   /* ---------- guess protection: wrong on the 2nd confirmation => not learned ---------- */
   reset();
@@ -157,9 +166,16 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
   assert.strictEqual(ab.lw, 1, "counted once, not for each confirmation"); assert.strictEqual(ab.box, 0); assert.strictEqual(ab.due, t + 1);
   lg = logOf();
   assert.strictEqual(lg.find(e => e.k === "fire station").c, "r");
-  assert(lg.filter(e => e.k === "alarm bell").every(e => e.c === "l"));
+  assert(lg.filter(e => e.k === "alarm bell" && e.c !== "x").every(e => e.c === "l"));
   assert.strictEqual(lg.find(e => e.k === "fire station").ok, 0);
   assert.strictEqual(lg.find(e => e.k === "fire station").n, 2);
+  assert(lg.some(e => e.k === "fire station" && e.c === "x"), "missed word was re-asked as practice");
+  // parent page lists today's missed words with a tip
+  ev(`parentPage()`);
+  {
+    const h = ev(`app.innerHTML`);
+    assert(/今天答错过/.test(h) && /Fire station!/.test(h) && /Alarm bell!/.test(h), "parent tips for missed words");
+  }
 
   /* ---------- slow answer on a review word: hold ---------- */
   reset(); capNew();
@@ -185,6 +201,79 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
   });
   assert.strictEqual(after["hose"].box, 3);
   assert.strictEqual(logOf().filter(e => e.c === "x").length, 9);
+
+  /* ---------- harder choices, sentence prompts, wrong-answer handling, parent tips ---------- */
+  {
+    const keys = new Set(pool.map(p => p.en.toLowerCase()));
+    Object.entries(J(ev(`CONFUSE`))).forEach(([k, v]) => [k, ...v].forEach(x => assert(keys.has(x), "CONFUSE unknown word " + x)));
+    const tips = J(ev(`TIPS`));
+    keys.forEach(k => assert(tips[k], "missing tip for " + k));
+    const pick = k => J(ev(`pickChoices(questPool().find(p => p.en === ${JSON.stringify(k)}))`)).map(x => x.en);
+
+    reset();
+    seed("doctor", {box: 1});
+    for(let n = 0; n < 30; n++) assert.strictEqual(pick("doctor").length, 3, "low level: 3 choices");
+    seed("doctor", {box: 2}); seed("vet", {box: 4}); seed("hose", {box: 2});
+    for(let n = 0; n < 40; n++){
+      const c = pick("doctor");
+      assert(c.length === 4 && new Set(c).size === 4 && c.includes("doctor") && c.includes("nurse") && c.includes("vet"), "confusable choices: " + c);
+      const v = pick("vet");
+      assert(v.length === 4 && v.includes("doctor") && v.includes("nurse"), "reverse lookup: " + v);
+      const h = pick("hose");
+      assert(h.length === 4 && h.filter(x => ["pole", "fire station", "firefighter"].includes(x)).length >= 2, "hose choices: " + h);
+    }
+    // a word without a confusable list still gets 4 distinct choices
+    seed("astronaut", {box: 3});
+    for(let n = 0; n < 20; n++){ const c = pick("astronaut"); assert(c.length === 4 && new Set(c).size === 4); }
+
+    // sentence prompt: only from level 3, only for words that have a sentence
+    const sen = k => ev(`useSen(questPool().find(p => p.en === ${JSON.stringify(k)}))`);
+    seed("teacher", {box: 2}); assert.strictEqual(sen("teacher"), false);
+    seed("teacher", {box: 3}); assert.strictEqual(sen("teacher"), true);
+    seed("hose", {box: 5});    assert.strictEqual(sen("hose"), false, "no sentence for hose");
+    for(const [box, url] of [[2, "audio/en/teacher.mp3"], [3, "audio/sen/teacher.mp3"]]){
+      reset(); capNew();
+      seed("teacher", {box, due: today(), right: 2, last: today() - 1, lastGood: today() - 1});
+      ev(`played.length = 0`);
+      await click("quest");
+      assert.strictEqual(ev(`Q.cur.en`), "teacher");
+      assert.strictEqual(ev(`Q.sent`), box >= 3);
+      assert(J(ev(`played`)).flat().includes(url), "prompt clip for box " + box);
+      ev(`played.length = 0`); await click("q-repeat");
+      assert.strictEqual(JSON.stringify(J(ev(`played`))), JSON.stringify([[url]]), "repeat uses the same clip");
+      await drive();
+    }
+
+    // wrong answers: 1st wrong = try again; 2nd wrong = show the answer; missed word comes back later as practice only
+    reset(); capNew();
+    ["teacher", "vet"].forEach(k => seed(k, {box: 3, due: today(), right: 3, last: today() - 2, lastGood: today() - 2}));
+    await click("quest");
+    const k0 = ev(`Q.cur.en`), chs = J(ev(`Q.choices`));
+    const ridx = chs.findIndex(c => c.en === k0), widx = chs.findIndex((c, i) => i !== ridx);
+    ev(`played.length = 0`); await click("q-choose", widx);
+    assert(J(ev(`played`)).flat().includes("audio/fx/fx_try_en.mp3"), "1st wrong: try again");
+    ev(`played.length = 0`); await click("q-choose", widx);
+    assert(J(ev(`played`)).flat().includes("audio/fx/fx_look_zh.mp3"), "2nd wrong: show and read the answer");
+    await click("q-choose", ridx);
+    assert.strictEqual(ev(`Q.steps.filter(s => s.retry).length`), 1, "missed word re-queued once");
+    assert.strictEqual(ev(`Q.steps.length`), 3);
+    await drive();
+    const other = k0 === "teacher" ? "vet" : "teacher";
+    w = W(k0);
+    assert.strictEqual(w.box, 1); assert.strictEqual(w.due, today() + 1, "retry must not change the schedule");
+    assert.strictEqual(W(other).box, 4);
+    assert(logOf().some(e => e.k === k0 && e.c === "x" && e.ok === 1), "retry logged as practice");
+    assert(/1 \/ 2 个/.test(ev(`app.innerHTML`)), "retry is not counted in the question total");
+    // answering the retry wrong again does not loop forever
+    reset(); capNew();
+    ["teacher", "vet"].forEach(k => seed(k, {box: 3, due: today(), right: 3, last: today() - 2, lastGood: today() - 2}));
+    await runQuest({wrongFor: new Set(["teacher", "vet"])});
+    assert.strictEqual(ev(`Q.steps.length`), 4, "each miss is re-asked at most once");
+    assert.strictEqual(ev(`Q.steps.filter(s => s.retry).length`), 2);
+    reset();
+    ev(`parentPage()`);
+    assert(/今天还没有新学的词/.test(ev(`app.innerHTML`)), "empty tip message");
+  }
 
   /* ---------- forgetting curve: buckets, aggregation, chart ---------- */
   [[1, 0], [2, 1], [3, 2], [4, 2], [5, 3], [7, 3], [8, 4], [14, 4], [15, 5], [29, 5], [30, 6], [400, 6], [0, -1]].forEach(([g, b]) =>
