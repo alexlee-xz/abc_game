@@ -328,6 +328,19 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
   let html = ev(`app.innerHTML`);
   assert(/遗忘情况/.test(html) && /最容易忘的词/.test(html) && /还没学会的词/.test(html) && /每天新词数/.test(html) && /语速/.test(html));
   assert(/忘 1 \/ 复习 \d+ 次/.test(html), "weak word listed");
+  // check-in calendar: Monday-first weekday header, 7 cells per row, 30 real days, today is last real cell
+  {
+    const hs = html.match(/<div class="hist">([\s\S]*?)<\/div><\/div>/)[1];
+    const heads = (hs.match(/class="hw"/g) || []).length;
+    const days = (hs.match(/class="hd(?: today)?"/g) || []).length;
+    const blanks = (hs.match(/class="hd off"/g) || []).length;
+    assert.strictEqual(heads, 7, "7 weekday headers");
+    assert.strictEqual(days, 30, "30 real days");
+    assert.strictEqual((days + blanks) % 7, 0, "whole weeks");
+    assert.strictEqual((hs.match(/hd today/g) || []).length, 1, "one today cell");
+    const wd = (ev(`new Date(todayNum() * 86400000).getUTCDay()`) + 6) % 7;
+    assert.strictEqual(blanks - (6 - wd) >= 0 && blanks - (6 - wd) <= 6, true, "leading blanks within a week");
+  }
   const bk = JSON.parse(ev(`backupText()`));
   assert(!("log" in bk) && bk.words && bk.cfg, "backup has no log but keeps stats");
   // legacy save (no cfg/log, words without new counters) must load and render

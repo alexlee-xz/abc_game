@@ -472,10 +472,14 @@ function parentPage(){
   const cfg = normCfg(SRS.cfg);
   const rv = v => Math.round(v * 10), rl = v => "×" + v.toFixed(1);
   let hist = "", histN = 0;
-  for(let k = 29; k >= 0; k--){
-    const day = t - k, on = SRS.doneDays.includes(day);
+  const wdOf = n => (new Date(n * 86400000).getUTCDay() + 6) % 7;   // 周一=0 … 周日=6
+  const first = t - 29, startCell = first - wdOf(first), endCell = t + (6 - wdOf(t));
+  hist += ["一", "二", "三", "四", "五", "六", "日"].map(w => `<span class="hw">${w}</span>`).join("");
+  for(let day = startCell; day <= endCell; day++){
+    if(day < first || day > t){ hist += `<span class="hd off"></span>`; continue; }
+    const on = SRS.doneDays.includes(day);
     if(on) histN++;
-    hist += `<span class="hd">${on ? "✅" : "▫️"}<i>${dayLabel(day)}</i></span>`;
+    hist += `<span class="hd${day === t ? " today" : ""}">${on ? "✅" : "▫️"}<i>${dayLabel(day)}</i></span>`;
   }
   app.innerHTML = `
     <div class="top"><button class="back" data-act="home">← 返回</button><span></span></div>
