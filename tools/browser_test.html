@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>browser test</title>
+<pre id="out">running...</pre>
+<iframe id="f" src="../index.html" style="width:400px;height:700px"></iframe>
+<script>
+// Loads the real index.html in an iframe, clicks "quest", and reports JS errors + resulting screen.
+const out = document.getElementById("out"), f = document.getElementById("f");
+const log = [];
+f.addEventListener("load", async () => {
+  const w = f.contentWindow, d = f.contentDocument;
+  w.addEventListener("error", e => log.push("ERROR: " + e.message + " @" + (e.filename||"").split("/").pop() + ":" + e.lineno));
+  w.addEventListener("unhandledrejection", e => log.push("REJECT: " + (e.reason && e.reason.stack || e.reason)));
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const click = sel => { const el = d.querySelector(sel); if(!el) { log.push("NOT FOUND " + sel); return false; } el.click(); return true; };
+  // ?stale=1 simulates a phone that cached the OLD data.js (without the 4 newest FX entries)
+  if(location.search.includes("stale=1")){ w.eval("FX.splice(7)"); log.push("simulated stale data.js, FX length=" + w.eval("FX.length")); }
+  log.push("home has quest button: " + !!d.querySelector('[data-act="quest"]'));
+  click('[data-act="quest"]');
+  await sleep(500);
+  log.push("quest teach page: ipa=" + !!d.querySelector(".card.teach .ipa") + " recBtn=" + !!d.querySelector("button.rec"));
+  // first quiz after the new-word page: tap the right card, expect the "again later" feedback for a new word
+  if(click('[data-act="q-next"]')){
+    await sleep(300);
+    log.push("quiz page: dots=" + !!d.querySelector(".dots") + " speaker=" + !!d.querySelector(".speaker") + " cards=" + d.querySelectorAll('[data-act="q-choose"]').length);
+    const right = w.eval("Q.choices.findIndex(c => c.en.toLowerCase() === Q.cur.en.toLowerCase())");
+    d.querySelectorAll('[data-act="q-choose"]')[right].click(); await sleep(300);
+    log.push("feedback: " + d.getElementById("fb").textContent + " | log entries: " + w.eval("SRS.log.length"));
+  }
+  // parent page: new sections + level buttons
+  click('[data-act="home"]'); await sleep(100);
+  click('[data-act="parent"]'); await sleep(200);
+  const ph = d.getElementById("app").innerText;
+  log.push("parent page: forgetting=" + ph.includes("遗忘情况") + " learning=" + ph.includes("还没学会的词") + " sliders=" + d.querySelectorAll("input.rng").length);
+  // forgetting curve: seed some data, re-open the parent page and check the SVG is well-formed XML with the expected marks
+  w.eval("SRS.curve = [[6,6],[5,4],[4,3],[3,2],[2,1],[1,0],[0,0]]; saveSRS(); parentPage();"); await sleep(100);
+  const svgEl = d.querySelector('svg[aria-label="遗忘曲线"]');
+  const parsed = svgEl ? new DOMParser().parseFromString(new XMLSerializer().serializeToString(svgEl), "image/svg+xml") : null;
+  log.push("curve svg: found=" + !!svgEl + " wellFormed=" + (parsed && !parsed.querySelector("parsererror")) + " circles=" + (svgEl ? svgEl.querySelectorAll("circle").length : 0)
+    + " size=" + (svgEl ? Math.round(svgEl.getBoundingClientRect().width) + "x" + Math.round(svgEl.getBoundingClientRect().height) : "-"));
+  w.eval("SRS.curve = freshCurve(); saveSRS(); parentPage();"); await sleep(100);
+  // drag the three sliders with real input events
+  const setRange = (key, v) => { const el = d.querySelector('input[data-set="' + key + '"]'); el.value = v; el.dispatchEvent(new w.Event("input", {bubbles: true})); return el; };
+  setRange("newPerDay", 4); setRange("promptRate", 7);
+  const enEl = setRange("enRate", 20); enEl.dispatchEvent(new w.Event("change", {bubbles: true})); await sleep(300);
+  log.push("speed slider range: " + enEl.min + "-" + enEl.max);
+  log.push("settings now: newPerDay=" + w.eval("newPerDay()") + " prompt=" + w.eval("SRS.cfg.promptRate") + " en=" + w.eval("SRS.cfg.enRate")
+    + " | labels: " + d.getElementById("v-new").textContent + " " + d.getElementById("v-promptRate").textContent + " " + d.getElementById("v-enRate").textContent);
+  log.push("player rate after English preview: " + w.eval("player.playbackRate"));
+  click('[data-act="p-try-prompt"]'); await sleep(200);
+  log.push("player rate after prompt preview: " + w.eval("player.playbackRate"));
+  setRange("newPerDay", 3); setRange("promptRate", 10); setRange("enRate", 10);
+  log.push("restored: " + w.eval("newPerDay()"));
+  // learn mode -> detail panel for "teacher": IPA shown, read-aloud scored with a mocked recogniser
+  click('[data-act="home"]'); await sleep(100);
+  click('[data-act="lesson"][data-i="1"]'); await sleep(100);
+  click('[data-act="learn"]'); await sleep(100);
+  log.push("learn grid ipa count: " + d.querySelectorAll(".card .ipa").length);
+  click('[data-act="pick"][data-i="2"]'); await sleep(200);
+  const ipa = d.querySelector("#panel .ipa");
+  log.push("detail ipa ok: " + (ipa && ipa.textContent === "/ˈtiːtʃər/"));
+  const MockRecog = class{
+    start(){ setTimeout(() => { this.onresult({results: [[{transcript: "teacher"}]]}); this.onend(); }, 50); }
+    stop(){}
+  };
+  w.SpeechRecognition = w.webkitSpeechRecognition = MockRecog;   // newer Chromium has a native unprefixed one
+  click('#panel button.rec'); await sleep(600);
+  const res = d.getElementById("recres").textContent;
+  log.push("rec stars: " + (res.match(/⭐/g) || []).length + " / 3, text length " + res.length);
+  out.textContent = log.join("\n");
+  document.title = "DONE";
+});
+</script>

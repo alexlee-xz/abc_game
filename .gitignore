@@ -1,0 +1,8 @@
+# local reference material: never publish
+resource/
+
+# python / editor
+__pycache__/
+*.pyc
+.venv/
+.vscode/
