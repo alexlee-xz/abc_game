@@ -471,9 +471,10 @@ function parentPage(){
   const rate = rc ? Math.round(fg / rc * 100) + "%" : "—";
   const cfg = normCfg(SRS.cfg);
   const rv = v => Math.round(v * 10), rl = v => "×" + v.toFixed(1);
-  let hist = "";
-  for(let k = 13; k >= 0; k--){
+  let hist = "", histN = 0;
+  for(let k = 29; k >= 0; k--){
     const day = t - k, on = SRS.doneDays.includes(day);
+    if(on) histN++;
     hist += `<span class="hd">${on ? "✅" : "▫️"}<i>${dayLabel(day)}</i></span>`;
   }
   app.innerHTML = `
@@ -517,7 +518,7 @@ function parentPage(){
       <button class="small-btn" data-act="p-try-en">🔊 试听英语</button>
       <div class="note" style="margin-top:6px">×1.0 是原速（英语本来就已经放慢了一点）。超过 ×1.5 或低于 ×0.7 时声音可能有点变调。个别手机浏览器（比如部分安卓微信）可能不支持变速，听起来没变化时请用系统浏览器打开。</div>
     </div>
-    <div class="sec"><h3>最近 14 天打卡</h3><div class="hist">${hist}</div></div>
+    <div class="sec"><h3>最近 30 天打卡</h3><div class="note" style="margin-top:0">最近 30 天里打卡了 <b>${histN}</b> 天</div><div class="hist">${hist}</div></div>
     <div class="sec"><h3>备份 / 恢复进度</h3>
       <div class="note">进度只保存在这个手机的浏览器里。换手机或清理缓存前，请先复制下面的文字保存；在新手机粘贴后点「导入」。备份包含进度和统计，不含逐题明细。</div>
       <textarea id="bk"></textarea>
