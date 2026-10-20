@@ -8,14 +8,18 @@ const root = path.resolve(__dirname, "..");
 const ctx = vm.createContext({console, setTimeout, setImmediate});
 
 const store = {};
-let clickHandler = null, inputHandler = null, changeHandler = null;
+const clickHandlers = [], inputHandlers = [], changeHandlers = [], keyHandlers = [];
 const prelude = `
-  globalThis.localStorage = {getItem:k=>(k in __store?__store[k]:null), setItem:(k,v)=>{__store[k]=String(v)}};
-  globalThis.alert = ()=>{}; globalThis.confirm = ()=>true;
+  globalThis.localStorage = {getItem:k=>(k in __store?__store[k]:null), setItem:(k,v)=>{__store[k]=String(v)}, removeItem:k=>{delete __store[k]}};
+  globalThis.alert = m=>{ __alerts.push(String(m)); }; globalThis.confirm = ()=>__confirmAns; globalThis.prompt = ()=>__promptAns;
+  globalThis.Blob = class{ constructor(parts,o){ this.parts=parts; this.type=o&&o.type; } };
+  globalThis.URL = {createObjectURL:b=>{ __downloads.push({blob:b}); return 'blob:x'; }, revokeObjectURL(){}};
   const els = {};
   globalThis.document = {
-    addEventListener:(t,f)=>{ if(t==='click') __setHandler(f); else __setHandler2(t,f); },
-    getElementById:id=>els[id]||(els[id]={value:'',textContent:'',select(){},setSelectionRange(){}}),
+    addEventListener:(t,f)=>{ __addHandler(t,f); },
+    getElementById:id=>els[id]||(els[id]={value:'',textContent:'',select(){},setSelectionRange(){},click(){}}),
+    createElement:()=>{ const a = {click(){ __downloads[__downloads.length-1].name = a.download; }, remove(){}, style:{}}; return a; },
+    body:{appendChild(){}},
     execCommand:()=>true
   };
   let NOW = Date.UTC(2026,9,19,12);
@@ -35,17 +39,21 @@ const prelude = `
   const actClip=it=>clip('act',it.id,(ACTS[it.id]||{}).en,'en');
   const fx = id => { const f = FX.find(x=>x.id===id); return f ? clip('fx',id,f.text,f.lang) : null; };
   const promptClips = it => [it.sen ? senClip(it) : enClip(it)];
+  const home = () => { session++; app.innerHTML = '<h1>ABC</h1>' + homeQuestHtml(); };      // index.html has the real home()
 `;
 ctx.__store = store;
-ctx.__setHandler = f => { clickHandler = f; };
-ctx.__setHandler2 = (t, f) => { if(t === "input") inputHandler = f; if(t === "change") changeHandler = f; };
+ctx.__alerts = []; ctx.__downloads = []; ctx.__confirmAns = true; ctx.__promptAns = null;
+ctx.__addHandler = (t, f) => { ({click: clickHandlers, input: inputHandlers, change: changeHandlers, keydown: keyHandlers}[t] || []).push(f); };
 
 vm.runInContext(fs.readFileSync(path.join(root, "data.js"), "utf8"), ctx);
+vm.runInContext(fs.readFileSync(path.join(root, "art.js"), "utf8"), ctx);
 vm.runInContext(prelude, ctx);
 // speak.js provides ipaHtml/recHtml used by the new-word page (its click listener is harmless here)
 vm.runInContext("globalThis.window = globalThis; globalThis.navigator = {};", ctx);
 vm.runInContext(fs.readFileSync(path.join(root, "speak.js"), "utf8"), ctx);
+vm.runInContext(fs.readFileSync(path.join(root, "profile.js"), "utf8"), ctx);
 vm.runInContext(fs.readFileSync(path.join(root, "srs.js"), "utf8"), ctx);
+vm.runInContext(fs.readFileSync(path.join(root, "account.js"), "utf8"), ctx);
 const ev = code => vm.runInContext(code, ctx);
 // values coming out of the vm have another realm's prototypes; JSON round-trip for deep comparisons
 const J = x => JSON.parse(JSON.stringify(x));
@@ -68,7 +76,7 @@ assert.strictEqual(missing.length, 0, "missing audio: " + missing.join(","));
 const tick = () => new Promise(r => setImmediate(r));
 async function click(act, i = 0, extra = {}){
   const t = {dataset: Object.assign({act, i: String(i)}, extra), classList: {add(){}, remove(){}}};
-  clickHandler({target: {closest: () => t}});
+  clickHandlers.forEach(h => h({target: {closest: () => t}}));
   await tick(); await tick();
 }
 
@@ -108,6 +116,7 @@ async function drive(o = {}){
   assert(/任务完成/.test(ev(`app.innerHTML`)), "finish screen not shown");
 }
 const reset = () => ev(`SRS = freshSRS(); saveSRS(); Q = null;`);
+const curStore = () => store[ev(`curKey()`)];       // raw JSON of the current child's saved record
 const W = k => J(ev(`SRS.words[${JSON.stringify(k)}]`));
 const logOf = () => J(ev(`SRS.log`));
 const today = () => ev(`todayNum()`);
@@ -469,7 +478,7 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
     assert.strictEqual(ev(`SRS.cfg.say`), false); assert.strictEqual(ev(`SRS.cfg.act`), false);
     await click("p-set", 0, {k: "bogus", v: "1"}); await click("p-set", 0, {k: "zh", v: "weird"});
     assert.strictEqual(ev(`SRS.cfg.zh`), "new", "unknown values fall back to the default");
-    assert.strictEqual(JSON.parse(store.abc_srs_v1).cfg.say, false, "saved");
+    assert.strictEqual(JSON.parse(curStore()).cfg.say, false, "saved");
     await click("p-set", 0, {k: "zh", v: "all"});
     await click("p-reset");
     assert.strictEqual(ev(`SRS.cfg.zh`), "all"); assert.strictEqual(ev(`SRS.cfg.say`), false, "reset keeps the toggles");
@@ -537,7 +546,7 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
   reset();
   assert.strictEqual(ev(`newPerDay()`), 3);
   // sliders: out-of-range values are clamped, labels update, settings persist
-  const slider = (k, v) => inputHandler({target: {dataset: {set: k}, value: String(v)}});
+  const slider = (k, v) => inputHandlers.forEach(h => h({target: {dataset: {set: k}, value: String(v)}}));
   slider("newPerDay", 99); assert.strictEqual(ev(`newPerDay()`), 20);
   slider("newPerDay", 0);  assert.strictEqual(ev(`newPerDay()`), 3);   // 0 / garbage -> default
   slider("newPerDay", 1);  assert.strictEqual(ev(`newPerDay()`), 1);
@@ -551,7 +560,7 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
   slider("enRate", 2);  assert.strictEqual(ev(`SRS.cfg.enRate`), 0.5);
   slider("enRate", 5);  assert.strictEqual(ev(`SRS.cfg.enRate`), 0.5);
   slider("promptRate", 15); assert.strictEqual(ev(`SRS.cfg.promptRate`), 1.5);
-  assert.strictEqual(JSON.parse(store.abc_srs_v1).cfg.newPerDay, 7, "saved");
+  assert.strictEqual(JSON.parse(curStore()).cfg.newPerDay, 7, "saved");
   // rate chosen per clip type
   slider("promptRate", 8); slider("enRate", 7);
   assert.strictEqual(ev(`rateFor(enClip(LESSONS[0].items[0]))`), 0.7);
@@ -654,6 +663,304 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
   // log cap
   ev(`for(let n = 0; n < 450; n++) logAnswer(1, "x", true, 1, 0, "l", 1);`);
   assert.strictEqual(ev(`SRS.log.length`), 400);
+
+  /* ---------- illustrations: every picture is a safe, self-contained inline SVG ---------- */
+  {
+    const items = ev(`LESSONS`).flatMap(l => l.items), used = new Set();
+    items.forEach(it => {
+      const svg = ev(`artFor(${JSON.stringify(it.id)})`);
+      assert(svg, "no illustration for " + it.id);
+      assert(it.emoji === svg, "item " + it.id + " uses the illustration");
+      assert.strictEqual((svg.match(/<svg[\s>]/g) || []).length, 1, it.id + ": one svg");
+      assert.strictEqual((svg.match(/<\/svg>/g) || []).length, 1, it.id + ": closed");
+      assert(!/<script|\son\w+\s*=|javascript:|<image|href=|<foreignObject/i.test(svg), it.id + ": no scripts / external refs");
+      assert(/viewBox="0 0 100 100"/.test(svg) && !/\swidth=|\sheight=/.test(svg.match(/<svg[^>]*>/)[0].replace(/stroke-width=/g, "")), it.id + ": sized by CSS");
+      used.add(ev(`ART_ALIAS[${JSON.stringify(it.id)}] || ${JSON.stringify(it.id)}`));
+    });
+    Object.keys(ev(`ART`)).forEach(k => assert(used.has(k), "unused illustration " + k));
+    // shapes inside one picture are balanced: every opened tag is self-closed or closed
+    Object.entries(J(ev(`ART`))).forEach(([k, svg]) => {
+      const opens = (svg.match(/<(?!\/)(?!\?)[a-z]+/gi) || []).length, selfClose = (svg.match(/\/>/g) || []).length, closes = (svg.match(/<\/[a-z]+>/gi) || []).length;
+      assert.strictEqual(opens, selfClose + closes, k + ": balanced tags");
+    });
+  }
+
+  /* ---------- child accounts: first run, names, isolation, migration ---------- */
+  const wipe = () => { Object.keys(store).forEach(k => delete store[k]); ev(`PROFS = readProfiles(); SRS = freshSRS(); Q = null; S = null;`); };
+  const profs = () => J(ev(`PROFS`));
+  const nameIn = v => ev(`document.getElementById("nm").value = ${JSON.stringify(v)}`);
+  const alerts = ctx.__alerts;
+  {
+    // upgrade from the old single-save version: legacy progress waits until the first name is typed
+    wipe();
+    const legacy = JSON.stringify({words: {hose: {box: 3, due: today() + 2, seen: 4, right: 5, wrong: 1, last: today() - 1, lastGood: today() - 1}},
+      daily: {day: 0, newCount: 0, done: false}, doneDays: [today() - 1], streak: 1, lastDone: today() - 1});
+    store.abc_srs_v1 = legacy;
+    ev(`boot()`);
+    let h = ev(`app.innerHTML`);
+    assert(/id="nm"/.test(h) && /maxlength="12"/.test(h) && /prof-create/.test(h), "welcome page asks for a name");
+    assert(/已有的学习记录/.test(h), "welcome page mentions the existing record");
+    assert(/p-pick/.test(h) && /type="file" id="imp"/.test(h), "first-run page can import a record file (new phone)");
+    assert.strictEqual(store.abc_srs_v1, legacy, "nothing touched yet");
+    assert.strictEqual(profs().list.length, 0);
+    // empty / blank name is refused
+    nameIn("   "); await click("prof-create");
+    assert.strictEqual(profs().list.length, 0); assert(/请先输入名字/.test(ev(`document.getElementById("nmerr").textContent`)));
+    // names with markup are kept as text and always escaped on screen
+    nameIn("  <b>Lily</b>  "); await click("prof-create");
+    let P = profs();
+    assert.strictEqual(P.list.length, 1); assert.strictEqual(P.list[0].name, "<b>Lily</b>"); assert.strictEqual(P.cur, P.list[0].id);
+    h = ev(`app.innerHTML`);
+    assert(/&lt;b&gt;Lily&lt;\/b&gt; ▾/.test(h) && !/<b>Lily/.test(h), "home shows the escaped name chip");
+    assert(/prof-chooser/.test(h), "name chip opens the chooser");
+    assert(!("abc_srs_v1" in store), "legacy key moved");
+    assert.strictEqual(store["abc_srs_v1__" + P.cur], legacy, "legacy record copied verbatim");
+    assert.strictEqual(ev(`SRS.words.hose.box`), 3, "legacy progress is the first child's progress");
+    const lilyId = P.cur;
+    ev(`renameProfile(${JSON.stringify(lilyId)}, "Lily")`);
+
+    // a second child starts empty, the first child's record is untouched
+    await click("prof-chooser");
+    h = ev(`app.innerHTML`); assert(/谁在玩/.test(h) && /prof-add/.test(h) && /prof-pick/.test(h));
+    await click("prof-add");
+    h = ev(`app.innerHTML`); assert(/新增小朋友/.test(h) && /prof-chooser/.test(h) && /p-pick/.test(h), "add-child page has a back button and import");
+    nameIn("lily"); await click("prof-create");
+    assert(/已经有这个名字/.test(ev(`document.getElementById("nmerr").textContent`)), "duplicate (case-insensitive) refused");
+    assert.strictEqual(profs().list.length, 1);
+    nameIn("Tom"); await click("prof-create");
+    P = profs(); assert.strictEqual(P.list.length, 2); const tomId = P.cur; assert.notStrictEqual(tomId, lilyId);
+    assert.strictEqual(Object.keys(ev(`SRS.words`)).length, 0, "Tom starts fresh (legacy is only adopted by the first name)");
+    ev(`SRS.cfg.newPerDay = 9`); ev(`saveSRS()`);
+    await runQuest();
+    assert(Object.keys(ev(`SRS.words`)).length >= 1);
+    await click("prof-pick", 0, {id: lilyId});
+    assert.strictEqual(profs().cur, lilyId); assert.strictEqual(ev(`SRS.words.hose.box`), 3); assert.strictEqual(Object.keys(ev(`SRS.words`)).length, 1, "Lily's record untouched by Tom's quest");
+    assert.strictEqual(ev(`SRS.cfg.newPerDay`), 3, "settings are per child");
+    await click("prof-pick", 0, {id: tomId});
+    assert.strictEqual(ev(`SRS.cfg.newPerDay`), 9); assert(Object.keys(ev(`SRS.words`)).length >= 3, "Tom's own record is back");
+    assert.strictEqual(JSON.parse(store["abc_srs_v1__" + tomId]).cfg.newPerDay, 9, "auto-saved under Tom's key");
+    // unknown id: nothing changes
+    await click("prof-pick", 0, {id: "nope"}); assert.strictEqual(profs().cur, tomId);
+
+    // rename / delete
+    assert.strictEqual(ev(`renameProfile(${JSON.stringify(tomId)}, "LILY")`).err, "已经有这个名字啦");
+    assert.strictEqual(ev(`renameProfile(${JSON.stringify(tomId)}, "  ")`).err, "名字不能是空的");
+    ctx.__promptAns = "Tommy"; await click("prof-rename", 0, {id: tomId}); assert.strictEqual(ev(`curProfile().name`), "Tommy");
+    ctx.__promptAns = null; await click("prof-rename", 0, {id: tomId}); assert.strictEqual(ev(`curProfile().name`), "Tommy", "cancel keeps the name");
+    ctx.__confirmAns = false; await click("prof-delete", 0, {id: tomId}); assert.strictEqual(profs().list.length, 2, "cancel keeps the child");
+    ctx.__confirmAns = true;  await click("prof-delete", 0, {id: tomId});
+    P = profs(); assert.strictEqual(P.list.length, 1); assert.strictEqual(P.cur, lilyId, "falls back to the remaining child");
+    assert(!(("abc_srs_v1__" + tomId) in store), "deleted child's record removed");
+    assert.strictEqual(ev(`SRS.words.hose.box`), 3);
+    await click("prof-delete", 0, {id: lilyId});
+    assert.strictEqual(profs().list.length, 0); assert(/id="nm"/.test(ev(`app.innerHTML`)), "no children left -> welcome page");
+    assert.strictEqual(Object.keys(store).filter(k => k.startsWith("abc_srs_v1__")).length, 0);
+
+    // limit of 6 children
+    wipe();
+    for(let n = 1; n <= 6; n++) assert(ev(`createProfile("K${n}")`).ok, "child " + n);
+    assert(/最多 6 个/.test(ev(`createProfile("K7")`).err));
+    ev(`parentPage()`); assert(!/data-act="prof-add"/.test(ev(`app.innerHTML`)), "no add button at the limit");
+    ev(`chooserPage()`); assert(!/prof-add/.test(ev(`app.innerHTML`)));
+
+    // damaged profile list / dangling current id / legacy junk
+    wipe(); store.abc_profiles_v1 = "{oops"; ev(`PROFS = readProfiles()`); assert.strictEqual(profs().list.length, 0);
+    store.abc_profiles_v1 = JSON.stringify({v: 1, cur: "gone", list: [{id: "a1", name: "A"}, {id: "a1", name: "dup id"}, {id: "bad id!", name: "B"}, {id: "c3", name: ""}, null]});
+    ev(`PROFS = readProfiles()`); P = profs(); assert.strictEqual(P.list.length, 1); assert.strictEqual(P.cur, "a1");
+    wipe(); store.abc_srs_v1 = "not json"; ev(`boot()`); assert(!/已有的学习记录/.test(ev(`app.innerHTML`)), "junk legacy ignored");
+    assert.strictEqual(ev(`createProfile("A").adopted`), false); assert.strictEqual(store.abc_srs_v1, "not json", "junk legacy is left alone");
+
+    // safety net: saving with no child creates one so nothing is lost
+    wipe(); ev(`SRS.streak = 4; saveSRS()`);
+    P = profs(); assert.strictEqual(P.list.length, 1); assert.strictEqual(P.list[0].name, "小朋友");
+    assert.strictEqual(JSON.parse(store["abc_srs_v1__" + P.cur]).streak, 4);
+    // reload from storage (like reopening the page)
+    ev(`PROFS = readProfiles(); SRS = loadSRS();`); assert.strictEqual(ev(`SRS.streak`), 4);
+
+    // Enter key on the name box creates the child
+    wipe(); ev(`welcomePage()`); nameIn("Amy");
+    keyHandlers.forEach(h => h({key: "Enter", target: {id: "nm"}}));
+    assert.strictEqual(profs().list.length, 1); assert.strictEqual(ev(`curProfile().name`), "Amy");
+    keyHandlers.forEach(h => h({key: "a", target: {id: "nm"}})); assert.strictEqual(profs().list.length, 1);
+    nameIn("x".repeat(40)); ev(`createFromInput()`);
+    assert.strictEqual(profs().list.length, 2); assert.strictEqual(ev(`curProfile().name`).length, 12, "name is cut to 12 characters");
+  }
+
+  /* ---------- export / import of a child's record ---------- */
+  {
+    wipe(); ev(`createProfile("Lily")`);
+    const lily = ev(`curProfile().id`), t = today();
+    seed("hose", {box: 4, due: t + 3, right: 6, last: t - 1, lastGood: t - 1});
+    ev(`logAnswer(${t}, "hose", true, 1, 800, "r", 1); SRS.story.fire = 2; SRS.cfg.enRate = 1.4; saveSRS();`);
+    // text for copy / paste: wrapped, named, no per-question log
+    const txt = JSON.parse(ev(`recordText()`));
+    assert.strictEqual(txt.app, "abc_game"); assert.strictEqual(txt.format, 1); assert.strictEqual(txt.name, "Lily");
+    assert(txt.data.words.hose && !("log" in txt.data), "text export keeps progress, drops the log");
+    assert.strictEqual(JSON.parse(ev(`recordText(undefined, true)`)).data.log.length, 1, "file export keeps the log");
+    assert(/id="bk"/.test((ev(`parentPage()`), ev(`app.innerHTML`))));
+    assert.strictEqual(JSON.parse(ev(`document.getElementById("bk").value`)).name, "Lily", "text box shows the current child's record");
+  }
+  {
+    // file download
+    const dl = ctx.__downloads; dl.length = 0;
+    const id = ev(`PROFS.cur`);
+    await click("prof-download", 0, {id});
+    assert.strictEqual(dl.length, 1); assert(/^abc_Lily_20\d{6}\.json$/.test(dl[0].name), "file name: " + dl[0].name);
+    const fileObj = JSON.parse(dl[0].blob.parts[0]);
+    assert.strictEqual(fileObj.name, "Lily"); assert.strictEqual(fileObj.data.log.length, 1);
+    assert(ev(`curProfile().exported`) > 0); assert(/今天导出过记录/.test(ev(`app.innerHTML`)), "page re-rendered with the export time");
+    assert(/已开始下载/.test(alerts[alerts.length - 1]), "tells the parent what to do if nothing happens");
+    ev(`__advanceDay(20)`); ev(`parentPage()`);
+    assert(/20 天前/.test(ev(`app.innerHTML`)) && /超过 14 天没有导出/.test(ev(`app.innerHTML`)), "reminder after 14 days");
+    ev(`__advanceDay(-20)`);
+    // a name with path characters is safe in the file name
+    ev(`renameProfile(PROFS.cur, 'a/b:c*d')`); dl.length = 0; await click("prof-download", 0, {id});
+    assert(/^abc_a_b_c_d_20\d{6}\.json$/.test(dl[0].name), dl[0].name);
+    ev(`renameProfile(PROFS.cur, "Lily")`);
+  }
+  {
+    // round trip on a "new device": export, wipe everything, import the file
+    wipe(); ev(`createProfile("Lily")`); const t = today();
+    seed("hose", {box: 4, due: t + 3, right: 6, last: t - 1, lastGood: t - 1});
+    ev(`SRS.story.fire = 2; saveSRS()`);
+    const file = ev(`recordText(PROFS.cur, true)`), before = JSON.parse(ev(`JSON.stringify(SRS)`));
+    ev(`deleteProfile(PROFS.cur)`); assert.strictEqual(profs().list.length, 0);
+    ctx.__alerts.length = 0;
+    ev(`accWhere = "welcome"`);
+    const r = ev(`importAndShow(${JSON.stringify(file)})`);
+    assert.strictEqual(r.mode, "new"); assert(/导入成功：Lily/.test(ctx.__alerts[0]));
+    assert.strictEqual(ev(`curProfile().name`), "Lily");
+    assert.deepStrictEqual(J(ev(`SRS.words`)), before.words); assert.strictEqual(ev(`SRS.story.fire`), 2);
+    assert(/连续/.test(ev(`app.innerHTML`)), "went to the home page");
+    // same name again: asks before overwriting
+    seed("pole", {box: 1}); ev(`saveSRS()`);
+    ctx.__confirmAns = false;
+    assert.strictEqual(ev(`importRecord(${JSON.stringify(file)})`).cancel, true);
+    assert(ev(`SRS.words.pole`), "declined overwrite keeps current data");
+    ctx.__confirmAns = true;
+    assert.strictEqual(ev(`importRecord(${JSON.stringify(file)})`).mode, "overwrite");
+    assert(!ev(`SRS.words.pole`), "overwrite replaces the record"); assert.strictEqual(profs().list.length, 1, "still one Lily");
+    // pasting text on the parent page works the same way
+    ev(`parentPage()`); ev(`document.getElementById("bk").value = ${JSON.stringify(file)}`);
+    await click("p-import"); assert(/导入成功/.test(ctx.__alerts[ctx.__alerts.length - 1]));
+    assert(/家长页/.test(ev(`app.innerHTML`)), "stays on the parent page");
+    // old-style backup (no name) replaces the current child after asking
+    const old = JSON.stringify({words: {pole: {box: 2, due: t + 1}}, doneDays: [], streak: 0, lastDone: 0});
+    ctx.__confirmAns = false; assert.strictEqual(ev(`importRecord(${JSON.stringify(old)})`).cancel, true);
+    ctx.__confirmAns = true;  assert.strictEqual(ev(`importRecord(${JSON.stringify(old)})`).mode, "current");
+    assert.strictEqual(ev(`SRS.words.pole.box`), 2); assert.strictEqual(ev(`curProfile().name`), "Lily");
+    wipe(); assert.strictEqual(ev(`importRecord(${JSON.stringify(old)})`).ok.name, "小朋友", "old backup with no child: creates one");
+    // rubbish is rejected without touching anything
+    const snap = JSON.stringify(ev(`SRS`));
+    ["", "abc", "[]", "null", "{}", '{"app":"abc_game"}', '{"app":"abc_game","data":{"words":5}}', '{"words":null}'].forEach(x =>
+      assert(ev(`importRecord(${JSON.stringify(x)})`).err, "rejects " + x));
+    assert.strictEqual(JSON.stringify(ev(`SRS`)), snap);
+    // hostile values in a file are clamped / dropped
+    const bad = JSON.stringify({app: "abc_game", format: 1, name: "<img src=x onerror=alert(1)>", data: {
+      words: {hose: {box: 99, due: "soon", right: -5, wrong: 1e9, born: "x"}, evil: "str", arr: [1], nul: null},
+      doneDays: [1, "2", "x", null, 2], streak: -3, daily: {news: [1, "a"]}, log: [{k: "hose", d: 5}, {k: 7, d: 1}, null, {d: 1}], story: {a: -1, b: 2},
+      cfg: {newPerDay: 9999, enRate: "fast"}}});
+    ev(`importRecord(${JSON.stringify(bad)})`);
+    const w = J(ev(`SRS.words`));
+    assert.deepStrictEqual(Object.keys(w), ["hose"], "only well-formed words survive");
+    assert.strictEqual(w.hose.box, 5); assert.strictEqual(w.hose.due, 0); assert.strictEqual(w.hose.right, 0); assert(!("born" in w.hose));
+    assert.deepStrictEqual(J(ev(`SRS.doneDays`)), [1, 2]); assert.strictEqual(ev(`SRS.streak`), 0);
+    assert.deepStrictEqual(J(ev(`SRS.daily.news`)), ["a"]); assert.strictEqual(ev(`SRS.log.length`), 1);
+    assert.strictEqual(ev(`SRS.cfg.newPerDay`), 20); assert.strictEqual(ev(`SRS.cfg.enRate`), 1);
+    assert.strictEqual(ev(`curProfile().name`), "<img src=x o", "hostile name is cut and kept as plain text");
+    ev(`parentPage()`); ev(`chooserPage()`);
+    assert(!/<img/.test(ev(`app.innerHTML`)), "hostile name is escaped in the chooser");
+    ev(`parentPage()`); assert(!/<img/.test(ev(`app.innerHTML`)), "...and on the parent page");
+    // a file chosen through the <input type=file> goes through the same path (FileReader is a browser API, so only the guard clauses run here)
+    ctx.__alerts.length = 0;
+    ev(`importFileChosen({files: [{size: 9 * 1024 * 1024}], value: "x"})`); assert(/太大/.test(ctx.__alerts[0]));
+    ev(`importFileChosen({files: []})`); ev(`importFileChosen(null)`);
+  }
+
+  /* ---------- parent page: accounts section replaces the old backup box ---------- */
+  {
+    wipe(); ev(`createProfile("Lily")`); seed("hose", {box: 1}); ev(`saveSRS(); createProfile("Tom")`);
+    ev(`parentPage()`);
+    const h = ev(`app.innerHTML`);
+    assert(/小朋友账户/.test(h) && /prof-download/.test(h) && /prof-rename/.test(h) && /prof-delete/.test(h) && /p-pick/.test(h) && /type="file" id="imp"/.test(h));
+    assert(!/备份 \/ 恢复进度/.test(h), "old backup section is gone");
+    assert((h.match(/data-act="prof-switch"/g) || []).length === 1, "switch button only for the other child");
+    assert(/正在使用/.test(h) && /微信里下载不了文件/.test(h) && /data-act="p-reset"/.test(h));
+    assert(!/<details open/.test(h), "text fallback is collapsed outside WeChat");
+    ev(`navigator.userAgent = "Mozilla/5.0 MicroMessenger/8.0"`); ev(`parentPage()`);
+    assert(/<details open/.test(ev(`app.innerHTML`)), "text fallback is open inside WeChat");
+    ev(`delete navigator.userAgent`);
+    // switching from the parent page keeps you there
+    await click("prof-switch", 0, {id: ev(`PROFS.list[0].id`)});
+    assert.strictEqual(ev(`curProfile().name`), "Lily"); assert(/家长页/.test(ev(`app.innerHTML`)));
+    await click("p-reset"); assert.strictEqual(Object.keys(ev(`SRS.words`)).length, 0, "reset clears only the current child");
+    ev(`switchProfile(PROFS.list[1].id)`); assert.strictEqual(ev(`curProfile().name`), "Tom");
+    // pasted file via the change event of the <input type=file> with no file chosen does nothing
+    changeHandlers.forEach(h => h({target: {id: "imp", files: []}}));
+  }
+
+  /* ---------- weekly summary ---------- */
+  {
+    wipe(); ev(`createProfile("Lily")`);
+    const t = today(), pk = k => ev(`questPool().find(p => wkey(p) === ${JSON.stringify(k)})`);
+    let w = ev(`weeklyText()`);
+    assert(/^【Lily 的英语小结】\d+\/\d+ ～ \d+\/\d+/.test(w), "title with name and date range: " + w.split("\n")[0]);
+    assert(/打卡 0\/7 天/.test(w) && /本周没有学新词/.test(w) && /本周还没有答题记录/.test(w) && /小花园：种下 0\/19 棵/.test(w), "empty week reads sensibly");
+    assert(/本周打卡 0 天/.test(w), "advice for no check-ins");
+    // a busy week
+    ev(`SRS.doneDays = [${t}, ${t - 2}, ${t - 10}]; SRS.streak = 1; SRS.lastDone = ${t}; SRS.story.fire = 3;`);
+    seed("dancer", {born: t - 1, box: 1, due: t + 1}); seed("vet", {born: t - 6, box: 1, due: t + 1}); seed("hose", {born: t - 20, box: 5, due: t + 9});
+    seed("pole", {box: 1, due: t + 1}); ev(`delete SRS.words["pole"].born`);        // an old save: no first-learned date
+    seed("teacher", {born: t - 7, box: 1, due: t + 1});                                // 8 days ago: outside the week
+    const L = (d, k, ok, c = "l") => ev(`logAnswer(${d}, ${JSON.stringify(k)}, ${ok}, 1, 500, "${c}", 1)`);
+    L(t, "vet", false); L(t, "vet", false); L(t, "vet", true); L(t, "dancer", true); L(t - 3, "dancer", false);
+    L(t - 1, "hose", true); L(t - 1, "hose", true); L(t - 1, "hose", true, "r"); L(t - 10, "vet", false);   // the last one is too old
+    w = ev(`weeklyText()`);
+    const zh = k => pk(k).zh;
+    assert(/打卡 2\/7 天，已连续 1 天/.test(w), "check-ins in the last 7 days only");
+    assert(w.includes(`本周新认识 2 个词：`) && w.includes(`dancer ${zh("dancer")}`) && w.includes(`vet ${zh("vet")}`), "new words this week");
+    assert(!/teacher|pole/.test(w.split("\n").slice(0, 3).join("\n")), "old / undated words are not 'new this week'");
+    assert(w.includes("答题 8 题，一次就对 5 题（63%）"), "accuracy from the last 7 days of the log: " + w);
+    assert(w.includes(`vet ${zh("vet")}（错 2 次）`) && w.includes(`dancer ${zh("dancer")}（错 1 次）`), "weak words ranked");
+    assert(w.indexOf("vet " + zh("vet") + "（错") < w.indexOf("dancer " + zh("dancer") + "（错"), "most missed first");
+    assert(w.includes("听故事排顺序：累计完成 3 次"));
+    assert(w.includes("• vet：" + ev(`tipOf(questPool().find(p => wkey(p) === "vet"))`)), "a real-life tip for a weak word");
+    assert(w.includes("种下 5/19 棵") || /种下 \d+\/19 棵/.test(w));
+    assert(/📌 本周打卡 2 天/.test(w), "advice mentions low check-ins");
+    assert(!/hose/.test(w), "a word with no misses and not new is not listed");
+    // advice rules
+    ev(`SRS.doneDays = [${[0, 1, 2, 3, 4, 5, 6].map(n => t - n).join(",")}]`);
+    assert(/继续保持/.test(ev(`weeklyText()`)), "nothing to improve -> encouragement");
+    for(let n = 0; n < 30; n++) L(t - 2, "hose", false);
+    assert(/调少一点/.test(ev(`weeklyText()`)), "low accuracy -> fewer new words");
+    ev(`SRS.log = []; for(let n = 0; n < 30; n++) logAnswer(${t - 2}, "hose", true, 1, 500, "l", 1);`);
+    assert(/调多一点/.test(ev(`weeklyText()`)), "very high accuracy with new words -> more new words");
+    ev(`SRS.words.hose.due = ${t}; SRS.words.dancer.due = ${t}; SRS.words.vet.due = ${t}; SRS.words.pole.due = ${t}; SRS.words.teacher.due = ${t};`);
+    assert(/5 棵小树渴了/.test(ev(`weeklyText()`)), "thirsty trees mentioned");
+    assert(ev(`weeklyText()`).split("📌")[1].split("。").filter(Boolean).length <= 2 + 1, "at most two pieces of advice");
+    // page: shows the same text and the copy button puts it on the clipboard
+    ev(`parentPage()`);
+    const h = ev(`app.innerHTML`);
+    assert(/每周小结/.test(h) && /id="wk"/.test(h) && /readonly/.test(h) && /p-copy-wk/.test(h));
+    assert.strictEqual(ev(`document.getElementById("wk").value`), ev(`weeklyText()`));
+    ctx.__alerts.length = 0; await click("p-copy-wk");
+    assert(/已复制/.test(ctx.__alerts[0]), "copy confirmed");
+    // execCommand refused -> falls back to the async clipboard API; both refused -> tells the parent what to do
+    ctx.__copied = [];
+    ev(`document.execCommand = () => false; navigator.clipboard = {writeText: async s => { globalThis.__copied.push(s); }}`);
+    ctx.__alerts.length = 0; await click("p-copy-wk"); await tick();
+    assert.strictEqual(ctx.__copied.length, 1); assert.strictEqual(ctx.__copied[0], ev(`weeklyText()`)); assert(/已复制/.test(ctx.__alerts[0]));
+    ev(`navigator.clipboard = {writeText: async () => { throw new Error("no"); }}`);
+    ctx.__alerts.length = 0; await click("p-copy-wk"); await tick();
+    assert(/长按文本框/.test(ctx.__alerts[0]), "manual copy hint");
+    ev(`delete navigator.clipboard; document.execCommand = () => true`);
+    // the summary is per child
+    ev(`createProfile("Tom")`); assert(/【Tom 的英语小结】/.test(ev(`weeklyText()`))); assert(/打卡 0\/7 天/.test(ev(`weeklyText()`)));
+    // newWord stamps the first-learned day, and an import / save keeps it
+    reset(); await runQuest(); const ws = J(ev(`SRS.words`));
+    assert(Object.values(ws).every(x => x.born === today()), "born is stamped when a word is first learned");
+    ev(`SRS = normSRS(JSON.parse(JSON.stringify(SRS)))`); assert(Object.values(J(ev(`SRS.words`))).every(x => x.born === today()), "born survives load / import");
+  }
 
   console.log("ALL OK; review days for first word:", reviewDays.slice(0, 6).join(","));
   const firstWeek = perDay.slice(0, 7), steady = perDay.slice(7);

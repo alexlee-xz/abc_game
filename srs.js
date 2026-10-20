@@ -1,9 +1,8 @@
 /* ============ 间隔复习（艾宾浩斯） + 魔法任务 + 小花园 + 家长页 ============
    依赖 index.html 里的全局：app, session, token, player, shuffle, playSeq, fx,
    enClip, zhClip, senClip, senZhClip, actClip。
-   进度保存在 localStorage（同一台手机、同一个浏览器内有效）。 */
+   进度保存在 localStorage（同一台手机、同一个浏览器内有效），每个小朋友一份（见 profile.js）。 */
 
-const SRS_KEY = "abc_srs_v1";
 // 新等级 -> 下次复习间隔（天）。学会后累计在第 1、2、4、7、15 天复习。
 const INTERVALS = [1, 1, 1, 2, 3, 8];
 const REPEAT_GAP = 15;            // 已长成苹果树后的复习间隔
@@ -60,18 +59,50 @@ function normCfg(c){
           zh: c.zh === "all" ? "all" : "new",      // 中文翻译：只在新词页 / 总是播
           say: c.say !== false, act: c.act !== false};   // “说一说”、“动一动”开关，默认开
 }
-// 兼容旧版本存档：缺的字段补默认值
+// 兼容旧版本存档、也防止导入的文件里有乱七八糟的内容：缺的字段补默认值，不合理的值收回到合理范围
+const intOr = (v, d) => { if(typeof v !== "number" && typeof v !== "string") return d; if(v === "") return d; v = Math.floor(+v); return isFinite(v) ? v : d; };
+function normWords(w){
+  const r = {};
+  if(!w || typeof w !== "object" || Array.isArray(w)) return r;
+  Object.keys(w).slice(0, 500).forEach(k => {
+    const x = w[k];
+    if(!x || typeof x !== "object" || Array.isArray(x)) return;
+    const o = {box: Math.min(5, Math.max(0, intOr(x.box, 0))), due: intOr(x.due, 0), seen: Math.max(0, intOr(x.seen, 1)),
+      right: Math.max(0, intOr(x.right, 0)), wrong: Math.max(0, intOr(x.wrong, 0)), last: x.last == null ? null : intOr(x.last, null),
+      lastGood: x.lastGood == null ? null : intOr(x.lastGood, null),
+      rc: Math.max(0, intOr(x.rc, 0)), fg: Math.max(0, intOr(x.fg, 0)), lw: Math.max(0, intOr(x.lw, 0))};
+    if(x.born != null && isFinite(+x.born)) o.born = intOr(x.born, 0);
+    r[k] = o;
+  });
+  return r;
+}
+function normLog(l){
+  if(!Array.isArray(l)) return [];
+  return l.filter(r => r && typeof r === "object" && typeof r.k === "string" && isFinite(+r.d))
+    .map(r => ({d: intOr(r.d, 0), k: r.k, ok: r.ok ? 1 : 0, n: Math.max(0, intOr(r.n, 1)), ms: Math.max(0, intOr(r.ms, 0)), c: ["l", "r", "x"].includes(r.c) ? r.c : "l", p: intOr(r.p, 0)}))
+    .slice(-LOG_MAX);
+}
 function normSRS(o){
+  o = (o && typeof o === "object") ? o : {};
   const s = Object.assign(freshSRS(), o);
-  if(!Array.isArray(s.log)) s.log = [];
-  s.cfg = normCfg(s.cfg);
-  s.curve = normCurve(s.curve);
-  s.story = normStory(s.story);
+  s.words = normWords(o.words);
+  const dd = o.daily && typeof o.daily === "object" ? o.daily : {};
+  s.daily = {day: intOr(dd.day, 0), newCount: Math.max(0, intOr(dd.newCount, 0)), done: !!dd.done,
+    news: Array.isArray(dd.news) ? dd.news.filter(x => typeof x === "string").slice(0, 50) : []};
+  s.doneDays = Array.isArray(o.doneDays) ? [...new Set(o.doneDays.map(x => intOr(x, NaN)).filter(isFinite))].slice(-400) : [];
+  s.streak = Math.max(0, intOr(o.streak, 0));
+  s.lastDone = intOr(o.lastDone, 0);
+  s.log = normLog(o.log);
+  s.cfg = normCfg(o.cfg);
+  s.curve = normCurve(o.curve);
+  s.story = normStory(o.story);
   return s;
 }
 function loadSRS(){
+  const key = curKey();
+  if(!key) return freshSRS();
   try{
-    const s = JSON.parse(localStorage.getItem(SRS_KEY));
+    const s = JSON.parse(localStorage.getItem(key));
     if(s && typeof s.words === "object") return normSRS(s);
   }catch(e){}
   return freshSRS();
@@ -90,9 +121,12 @@ function rateFor(c){
   if(/^audio\/(zh|senzh|fx)\//.test(u)) return cfg.promptRate;
   return 1;
 }
-// 备份文字不含逐题记录（太长，微信里发不出去），词的统计计数仍会保留
+// 不含逐题记录的纯进度文字（词的统计计数仍会保留）。家长页的“复制文字”用 account.js 里带名字的外壳
 function backupText(){ const o = Object.assign({}, SRS); delete o.log; return JSON.stringify(o); }
-function saveSRS(){ try{ localStorage.setItem(SRS_KEY, JSON.stringify(SRS)); }catch(e){} }
+function saveSRS(){
+  ensureProfile();
+  try{ localStorage.setItem(curKey(), JSON.stringify(SRS)); }catch(e){}
+}
 
 /* ---------- 日期 / 词库 ---------- */
 function todayNum(){
@@ -199,7 +233,8 @@ function tipSection(title, empty){
 /* ---------- 每个词的记录 ---------- */
 // box 等级；due 下次复习日；lastGood 最近一次“确认学会”的日期；
 // rc 隔天复习测试次数；fg 其中答错（遗忘）次数；lw 还没学会时的答错次数
-const newWord = t => ({box: 0, due: t, seen: 1, right: 0, wrong: 0, last: t, lastGood: null, rc: 0, fg: 0, lw: 0});
+// born：第一次学这个词的日期（每周小结里“本周新认识”用；旧存档没有，就不算进去）
+const newWord = t => ({box: 0, due: t, seen: 1, right: 0, wrong: 0, last: t, lastGood: null, rc: 0, fg: 0, lw: 0, born: t});
 function fillW(w){ w.rc = w.rc || 0; w.fg = w.fg || 0; w.lw = w.lw || 0; return w; }
 // 最近一次确认学会的日期；从没学会返回 null。旧版存档没有 lastGood，等级≥ 1 就用上次作答日近似
 function lastGoodDay(w){
@@ -292,7 +327,7 @@ function homeQuestHtml(){
     <button class="big quest" data-act="quest">🌈 今日魔法任务<small>${sub}</small></button>
     <button class="big green" data-act="garden">🌳 我的小花园<small>种下 ${s.planted}/${s.total} 棵${extra}</small></button>
     ${storyHtml()}
-    <div class="chips"><span class="chip">🔥 连续 ${currentStreak()} 天</span></div>
+    <div class="chips"><span class="chip">🔥 连续 ${currentStreak()} 天</span>${typeof nameChip === "function" ? nameChip() : ""}</div>
     <div class="sec-title">📚 单元练习</div>`;
 }
 
@@ -764,6 +799,7 @@ function parentPage(){
   app.innerHTML = `
     <div class="top"><button class="back" data-act="home">← 返回</button><span></span></div>
     <h2>👨‍👩‍👧 家长页</h2>
+    ${typeof weeklySection === "function" ? weeklySection() : ""}
     <div class="sec"><h3>今天</h3>
       ${line("今日任务", d.done ? "已完成 ✅" : "未完成")}
       ${line("待复习的词", q.due.length + " 个")}
@@ -813,17 +849,11 @@ function parentPage(){
       <div class="note" style="margin-top:6px">×1.0 是原速（英语本来就已经放慢了一点）。超过 ×1.5 或低于 ×0.7 时声音可能有点变调。个别手机浏览器（比如部分安卓微信）可能不支持变速，听起来没变化时请用系统浏览器打开。</div>
     </div>
     <div class="sec"><h3>最近 30 天打卡</h3><div class="note" style="margin-top:0">最近 30 天里打卡了 <b>${histN}</b> 天</div><div class="hist">${hist}</div></div>
-    <div class="sec"><h3>备份 / 恢复进度</h3>
-      <div class="note">进度只保存在这个手机的浏览器里。换手机或清理缓存前，请先复制下面的文字保存；在新手机粘贴后点「导入」。备份包含进度和统计，不含逐题明细。</div>
-      <textarea id="bk"></textarea>
-      <button class="small-btn" data-act="p-copy">复制</button>
-      <button class="small-btn" data-act="p-import">导入</button>
-      <button class="small-btn ghost" data-act="p-reset">清空进度</button>
-    </div>
+    ${typeof accountSection === "function" ? accountSection() : ""}
     <div class="sec"><h3>复习规则</h3>
       <div class="note">学会后在第 1、2、4、7、15 天各复习一次。新词要在同一天连续两次第一次就点对，而且没有犹豫太久（听完后 9 秒内），才算学会、小树长大；犹豫的算不稳，不升级；点错会降级，明天再练。词长到 🌿 以后改成 4 选 1，到 🪴 以后有句子的词改听整句，复习题会随机换一个英文声音。答错的词隔几题后会再考一次（只算练习，不影响复习日程和统计）；连点错 2 次会把正确的图亮出来带孩子读。每天新词数和语速可在上面调整。</div>
     </div>`;
-  document.getElementById("bk").value = backupText();
+  if(typeof afterParentRender === "function") afterParentRender();
 }
 
 /* ---------- 事件 ---------- */
@@ -864,22 +894,6 @@ document.addEventListener("click", e => {
       break;
     }
     case "parent":   parentPage(); break;
-    case "p-copy": {
-      const ta = document.getElementById("bk");
-      let ok = false;
-      try{ ta.select(); ta.setSelectionRange(0, 999999); ok = document.execCommand("copy"); }catch(err){}
-      alert(ok ? "已复制，可以发给自己保存" : "请长按文本框，手动全选并复制");
-      break;
-    }
-    case "p-import": {
-      try{
-        const o = JSON.parse(document.getElementById("bk").value.trim());
-        if(!o || typeof o.words !== "object") throw new Error("bad");
-        SRS = normSRS(o);
-        saveSRS(); alert("导入成功"); parentPage();
-      }catch(err){ alert("导入失败：内容格式不对"); }
-      break;
-    }
     case "p-try-prompt": playSeq([fx("fx_find_zh"), fx("fx_good_zh")]); break;
     case "p-try-en": {
       const it = questPool().find(p => p.sen) || questPool()[0];

@@ -7,6 +7,8 @@
 // Loads the real index.html in an iframe, clicks "quest", and reports JS errors + resulting screen.
 const out = document.getElementById("out"), f = document.getElementById("f");
 const log = [];
+// an exception inside the test itself would otherwise leave "running..." on the page forever
+window.addEventListener("unhandledrejection", e => { out.textContent = "TEST ERROR: " + (e.reason && e.reason.stack || e.reason) + "\n" + log.join("\n"); document.title = "DONE"; });
 f.addEventListener("load", async () => {
   const w = f.contentWindow, d = f.contentDocument;
   w.addEventListener("error", e => log.push("ERROR: " + e.message + " @" + (e.filename||"").split("/").pop() + ":" + e.lineno));
@@ -15,6 +17,14 @@ f.addEventListener("load", async () => {
   const click = sel => { const el = d.querySelector(sel); if(!el) { log.push("NOT FOUND " + sel); return false; } el.click(); return true; };
   // ?stale=1 simulates a phone that cached the OLD data.js (without the 4 newest FX entries)
   if(location.search.includes("stale=1")){ w.eval("FX.splice(7)"); log.push("simulated stale data.js, FX length=" + w.eval("FX.length")); }
+  w.alert = m => log.push("ALERT: " + String(m).slice(0, 40)); w.confirm = () => true; w.prompt = () => "Lilian";
+  // first run: no child yet -> welcome page asks for a name; nothing is saved until a name is given
+  log.push("first run: welcome=" + !!d.getElementById("nm") + " saved keys=" + w.eval("Object.keys(localStorage).join()") + "|");
+  d.getElementById("nm").value = "  "; click('[data-act="prof-create"]');
+  log.push("blank name error: " + d.getElementById("nmerr").textContent);
+  const nmEl = d.getElementById("nm"); nmEl.value = "Lily";
+  nmEl.dispatchEvent(new w.KeyboardEvent("keydown", {key: "Enter", bubbles: true})); await sleep(150);
+  log.push("after Enter: chip='" + (d.querySelector(".chip[data-act='prof-chooser']") || {textContent: "-"}).textContent.trim() + "' profiles=" + w.eval("PROFS.list.length"));
   log.push("home has quest button: " + !!d.querySelector('[data-act="quest"]'));
   click('[data-act="quest"]');
   await sleep(500);
@@ -84,7 +94,9 @@ f.addEventListener("load", async () => {
   log.push("finish page tips: " + d.querySelectorAll(".tip").length + " | has section: " + d.getElementById("app").innerText.includes("家长小任务"));
   w.eval("garden()"); await sleep(100);
   const svgs = d.querySelectorAll(".card.mini .emoji svg");
-  log.push("garden svg pictures: " + svgs.length + " (expect 2: pole + hose), width " + (svgs[0] ? Math.round(svgs[0].getBoundingClientRect().width) : 0));
+  const gw = svgs[0] ? Math.round(svgs[0].getBoundingClientRect().width) : 0, gh = svgs[0] ? Math.round(svgs[0].getBoundingClientRect().height) : 0;
+  log.push("garden svg pictures: " + svgs.length + " of " + d.querySelectorAll(".card.mini").length + " cards (expect all), size " + gw + "x" + gh + " (expect 38x38), emoji left: "
+    + [...d.querySelectorAll(".card.mini .emoji")].filter(e => !e.querySelector("svg")).length);
   // story: locked at first, then unlocked, cards in the real layout, numbered badges, finish page
   w.eval(`SRS = freshSRS(); saveSRS(); home();`); await sleep(100);
   log.push("story locked on a fresh save: " + !!d.querySelector(".big.locked") + " | no story button: " + !d.querySelector('[data-act="story"]'));
@@ -116,6 +128,49 @@ f.addEventListener("load", async () => {
   d.querySelector('[data-act="p-set"][data-k="zh"][data-v="all"]').click(); await sleep(100);
   log.push("zh toggle: cfg=" + w.eval("SRS.cfg.zh") + " | on button: " + d.querySelector('[data-act="p-set"][data-k="zh"].on').dataset.v);
   w.eval("SRS = freshSRS(); saveSRS();");
+  // pictures at their real sizes: learn grid (54px), detail panel (96px), new-word page (110px)
+  const sz = sel => { const e = d.querySelector(sel); if(!e) return "missing"; const r = e.getBoundingClientRect(); return Math.round(r.width) + "x" + Math.round(r.height); };
+  w.eval("home()"); await sleep(50);
+  click('[data-act="lesson"][data-i="1"]'); await sleep(100); click('[data-act="learn"]'); await sleep(100);
+  log.push("learn grid svg: " + d.querySelectorAll(".card .emoji svg").length + " of " + d.querySelectorAll(".card .emoji").length + " size " + sz(".card .emoji svg") + " (expect 54x54)");
+  click('[data-act="pick"][data-i="2"]'); await sleep(150);
+  log.push("detail panel svg: " + sz("#panel .emoji svg") + " (expect 96x96)"); click('[data-act="close"]');
+  w.eval("home()"); await sleep(50); click('[data-act="quest"]'); await sleep(300);
+  log.push("new-word page svg: " + sz(".card.teach .emoji svg") + " (expect 110x110)");
+  // a picture really paints something: draw the <svg> of every picture on a canvas and count non-transparent pixels
+  const paint = async svgText => { const img = new Image(); img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgText); await img.decode(); const c = document.createElement("canvas"); c.width = c.height = 64; const x = c.getContext("2d"); x.drawImage(img, 0, 0, 64, 64); const a = x.getImageData(0, 0, 64, 64).data; let n = 0; for(let i = 3; i < a.length; i += 4) if(a[i] > 40) n++; return n; };
+  const ART = w.eval("ART");
+  const empties = []; for(const k of Object.keys(ART)){ if(await paint(ART[k]) < 400) empties.push(k); }
+  log.push("pictures that render (>=10% painted): " + (Object.keys(ART).length - empties.length) + "/" + Object.keys(ART).length + (empties.length ? " EMPTY: " + empties.join() : ""));
+
+  // ----- accounts in the real DOM -----
+  w.eval(`SRS = freshSRS(); SRS.cfg.newPerDay = 5; saveSRS(); home();`); await sleep(50);
+  click('.chip[data-act="prof-chooser"]'); await sleep(50);
+  log.push("chooser: buttons=" + d.querySelectorAll('[data-act="prof-pick"]').length + " add=" + !!d.querySelector('[data-act="prof-add"]'));
+  click('[data-act="prof-add"]'); await sleep(50);
+  d.getElementById("nm").value = "Tom"; click('[data-act="prof-create"]'); await sleep(100);
+  log.push("second child: " + w.eval("curProfile().name") + " newPerDay=" + w.eval("newPerDay()") + " (expect 3, not Lily's 5) keys=" + w.eval("Object.keys(localStorage).filter(k => k.indexOf('abc_srs_v1__') === 0).length"));
+  w.eval("parentPage()"); await sleep(100);
+  const ptxt = d.getElementById("app").innerText;
+  log.push("parent page: accounts=" + ptxt.includes("小朋友账户") + " weekly=" + ptxt.includes("每周小结") + " oldBackup=" + ptxt.includes("备份 / 恢复进度") + " wk=" + d.getElementById("wk").value.split("\n")[0]);
+  log.push("wk textarea selectable: " + w.getComputedStyle(d.getElementById("wk")).userSelect + " rows=" + d.getElementById("wk").value.split("\n").length);
+  click('[data-act="p-copy-wk"]'); await sleep(200);
+  // download: intercept the anchor click, read the Blob back
+  let dl = null; const realCreate = w.URL.createObjectURL; w.URL.createObjectURL = b => { dl = b; return realCreate.call(w.URL, b); };
+  const origClick = w.HTMLAnchorElement.prototype.click; w.HTMLAnchorElement.prototype.click = function(){ log.push("download requested: " + this.download); };
+  click('[data-act="prof-download"]'); await sleep(200);
+  w.HTMLAnchorElement.prototype.click = origClick;
+  const dtext = dl ? await dl.text() : "";
+  log.push("download blob: " + (dl ? dl.type : "none") + " parses=" + (() => { try{ return JSON.parse(dtext).app; }catch(e){ return "NO"; } })());
+  // import through a real <input type=file> + FileReader
+  const rec = JSON.stringify({app: "abc_game", format: 1, name: "Zoe", data: {words: {teacher: {box: 3, due: 5, right: 2}}, doneDays: [], streak: 0, lastDone: 0}});
+  const dt = new w.DataTransfer(); dt.items.add(new w.File([rec], "abc_Zoe.json", {type: "application/json"}));
+  const imp = d.getElementById("imp"); imp.files = dt.files; imp.dispatchEvent(new w.Event("change", {bubbles: true})); await sleep(400);
+  log.push("imported file: current=" + w.eval("curProfile().name") + " words=" + w.eval("Object.keys(SRS.words).join()") + " profiles=" + w.eval("PROFS.list.map(p => p.name).join()"));
+  // reload-like: rebuild state from localStorage
+  w.eval("PROFS = readProfiles(); SRS = loadSRS();");
+  log.push("after reload: current=" + w.eval("curProfile().name") + " words=" + w.eval("Object.keys(SRS.words).join()"));
+  w.eval("localStorage.clear()");
   out.textContent = log.join("\n");
   document.title = "DONE";
 });

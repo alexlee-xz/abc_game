@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>图片预览</title>
+<style>
+  body{font-family:system-ui,"Microsoft YaHei",sans-serif; background:#fff3e0; color:#4e342e; margin:16px}
+  h1{font-size:20px}
+  .g{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px}
+  .c{background:#fff; border-radius:16px; padding:10px; text-align:center; box-shadow:0 3px 0 #ffcc80}
+  .c svg{width:130px; height:130px}
+  .c .s{display:flex; align-items:center; justify-content:center; gap:10px; margin-top:6px}
+  .c .s svg{width:52px; height:52px}
+  .c .s svg + svg{width:38px; height:38px}
+  .c b{display:block; margin-top:6px; font-size:14px}
+  .c small{color:#8d6e63}
+  .gray svg{filter:grayscale(1); opacity:.45}
+</style>
+<h1>全部图片（大图 + 实际使用的 52px、38px 小图）</h1>
+<div class="g" id="g"></div>
+<h1>在“还没学会”的小花园里（灰色）</h1>
+<div class="g gray" id="g2"></div>
+<script src="../data.js"></script>
+<script src="../art.js"></script>
+<script>
+const seen = new Set(), items = [];
+LESSONS.forEach(l => l.items.forEach(it => { const k = ART_ALIAS[it.id] || it.id; if(!seen.has(k)){ seen.add(k); items.push(it); } }));
+const card = (it, small) => `<div class="c"><div>${it.emoji}</div>${small ? `<div class="s">${it.emoji}${it.emoji}</div>` : ""}<b>${it.en}</b><small>${it.zh}</small></div>`;
+document.getElementById("g").innerHTML = items.map(it => card(it, true)).join("");
+document.getElementById("g2").innerHTML = items.filter(it => !it.sentence).map(it => card(it, false)).join("");
+</script>

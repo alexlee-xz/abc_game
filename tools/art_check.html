@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>art check</title>
+<pre id="out">running...</pre>
+<script src="../data.js"></script>
+<script src="../art.js"></script>
+<script>
+// Renders every picture in a real browser and checks them mechanically:
+//   * well-formed SVG                       * nothing touches the canvas edge (nothing is clipped)
+//   * sensible amount of ink / fill         * no two pictures are nearly identical
+// Run (headless Edge, local server on :8765):  see README "开发者" notes or tools/browser_test.html for the command.
+const out = document.getElementById("out"), log = [];
+const S = 128;
+const load = svg => new Promise((res, rej) => {
+  const img = new Image();
+  img.onload = () => res(img); img.onerror = () => rej(new Error("render failed"));
+  img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+});
+(async () => {
+  const ids = [];
+  LESSONS.forEach(l => l.items.forEach(it => { if(!ids.some(x => x.k === (ART_ALIAS[it.id] || it.id))) ids.push({k: ART_ALIAS[it.id] || it.id, it}); }));
+  const masks = {}, cv = document.createElement("canvas"); cv.width = cv.height = S;
+  const cx = cv.getContext("2d", {willReadFrequently: true});
+  let bad = 0;
+  for(const {k, it} of ids){
+    const svg = ART[k];
+    if(!svg){ log.push("MISSING art for " + k); bad++; continue; }
+    const doc = new DOMParser().parseFromString(svg, "image/svg+xml");
+    if(doc.querySelector("parsererror")){ log.push("NOT WELL-FORMED: " + k); bad++; continue; }
+    if(/<script|onload|onclick|href=/i.test(svg)){ log.push("UNSAFE content in " + k); bad++; }
+    cx.clearRect(0, 0, S, S);
+    cx.drawImage(await load(svg), 0, 0, S, S);
+    const px = cx.getImageData(0, 0, S, S).data, m = new Uint8Array(S * S);
+    let on = 0, edge = 0;
+    for(let y = 0; y < S; y++) for(let x = 0; x < S; x++){
+      const a = px[(y * S + x) * 4 + 3];
+      if(a > 40){ m[y * S + x] = 1; on++; if(x < 2 || y < 2 || x >= S - 2 || y >= S - 2) edge++; }
+    }
+    masks[k] = {m, px};
+    const cov = on / (S * S);
+    const flags = [];
+    if(edge) flags.push("TOUCHES EDGE(" + edge + "px)");
+    if(cov < 0.14 || cov > 0.85) flags.push("coverage " + cov.toFixed(2));
+    if(flags.length) bad++;
+    log.push((flags.length ? "!! " : "ok ") + k.padEnd(13) + " coverage=" + cov.toFixed(2) + (flags.length ? "  " + flags.join(", ") : ""));
+  }
+  const keys = Object.keys(masks);
+  let minDiff = 1, minPair = "";
+  for(let i = 0; i < keys.length; i++) for(let j = i + 1; j < keys.length; j++){
+    let d = 0, u = 0; const A = masks[keys[i]], B = masks[keys[j]];
+    for(let p = 0; p < A.m.length; p++){
+      if(!(A.m[p] || B.m[p])) continue;
+      u++;
+      if(A.m[p] !== B.m[p]) { d++; continue; }
+      const o = p * 4;      // both painted: different colour counts as different
+      if(Math.abs(A.px[o] - B.px[o]) + Math.abs(A.px[o + 1] - B.px[o + 1]) + Math.abs(A.px[o + 2] - B.px[o + 2]) > 90) d++;
+    }
+    const r = d / u; if(r < minDiff){ minDiff = r; minPair = keys[i] + " vs " + keys[j]; }
+  }
+  log.push("pictures: " + keys.length + " | most similar pair: " + minPair + " differs in " + (minDiff * 100).toFixed(0) + "% of the pixels they cover (shape or colour)");
+  if(minDiff < 0.3){ log.push("!! two pictures are too similar"); bad++; }
+  log.push(bad ? "PROBLEMS: " + bad : "ART OK");
+  out.textContent = log.join("\n");
+  document.title = "DONE";
+})().catch(e => { out.textContent = log.join("\n") + "\nERROR " + e; document.title = "DONE"; });
+</script>
