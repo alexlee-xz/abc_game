@@ -588,7 +588,33 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
   });
   // out-of-range speeds in an imported backup are clamped
   ev(`SRS = normSRS({words: {}, cfg: {newPerDay: 500, enRate: 9, promptRate: 0.1}})`);
-  assert.strictEqual(ev(`newPerDay()`), 20); assert.strictEqual(ev(`SRS.cfg.enRate`), 2); assert.strictEqual(ev(`SRS.cfg.promptRate`), 0.5);
+  reset();
+
+  // recording length (word / sentence settings): defaults, sliders keep min <= max, clamping, persistence, old saves, parent page
+  assert.deepStrictEqual(J(ev(`SRS.cfg.recWord`)), [3, 6]); assert.deepStrictEqual(J(ev(`SRS.cfg.recSen`)), [4, 10]);
+  assert.deepStrictEqual(J(ev(`recRange(false)`)), {min: 3000, max: 6000}); assert.deepStrictEqual(J(ev(`recRange(true)`)), {min: 4000, max: 10000});
+  slider("recWordMax", 9);  assert.deepStrictEqual(J(ev(`SRS.cfg.recWord`)), [3, 9]);
+  slider("recWordMin", 5);  assert.deepStrictEqual(J(ev(`SRS.cfg.recWord`)), [5, 9]);
+  slider("recWordMin", 10); assert.deepStrictEqual(J(ev(`SRS.cfg.recWord`)), [10, 10], "raising the minimum above the maximum pushes the maximum up");
+  slider("recWordMax", 4);  assert.deepStrictEqual(J(ev(`SRS.cfg.recWord`)), [4, 4], "lowering the maximum below the minimum pulls the minimum down");
+  slider("recWordMax", 99); assert.deepStrictEqual(J(ev(`SRS.cfg.recWord`)), [4, 10], "word limit is 10 s");
+  slider("recWordMin", 0);  assert.deepStrictEqual(J(ev(`SRS.cfg.recWord`)), [1, 10], "word minimum is at least 1 s");
+  slider("recSenMax", 99);  assert.deepStrictEqual(J(ev(`SRS.cfg.recSen`)), [4, 20], "sentence limit is 20 s");
+  slider("recSenMin", 1);   assert.deepStrictEqual(J(ev(`SRS.cfg.recSen`)), [2, 20], "sentence minimum is at least 2 s");
+  slider("recSenMin", "x"); assert.deepStrictEqual(J(ev(`SRS.cfg.recSen`)), [2, 20], "garbage is ignored");
+  slider("recSenMin", 6);   slider("recSenMax", 12);
+  assert.deepStrictEqual(J(ev(`SRS.cfg.recWord`)), [1, 10], "word and sentence settings are independent");
+  assert.deepStrictEqual(J(ev(`recRange(true)`)), {min: 6000, max: 12000});
+  assert.deepStrictEqual(J(JSON.parse(curStore()).cfg.recSen), [6, 12], "saved");
+  assert.strictEqual(ev(`document.getElementById("v-recSenMin").textContent`), 6, "labels update");
+  await click("parent");
+  const rh = ev(`app.innerHTML`);
+  assert(/跟读录音时长/.test(rh) && /value="6" data-set="recSenMin"/.test(rh) && /value="12" data-set="recSenMax"/.test(rh) && /value="1" data-set="recWordMin"/.test(rh) && /value="10" data-set="recWordMax"/.test(rh), "parent page shows the four sliders");
+  assert(/min="2" max="20" step="1" value="6" data-set="recSenMin"/.test(rh) && /min="1" max="10" step="1" value="1" data-set="recWordMin"/.test(rh), "slider ranges");
+  await click("p-reset"); assert.deepStrictEqual(J(ev(`SRS.cfg.recSen`)), [6, 12], "reset keeps the recording settings");
+  ev(`SRS = normSRS({words: {}, cfg: {newPerDay: 3}})`); assert.deepStrictEqual(J(ev(`SRS.cfg.recWord`)), [3, 6], "old saves get the defaults");
+  ev(`SRS = normSRS({words: {}, cfg: {recWord: [50, 2], recSen: "x"}})`);
+  assert.deepStrictEqual(J(ev(`SRS.cfg.recWord`)), [10, 10]); assert.deepStrictEqual(J(ev(`SRS.cfg.recSen`)), [4, 10], "bad values in an imported file are cleaned");
   reset();
 
   /* ---------- 45 days of all-correct use: schedule, caps, streak (NEW=n to try other volumes) ---------- */

@@ -33,6 +33,7 @@ vm.runInContext(`
 `, ctx);
 vm.runInContext(fs.readFileSync(path.join(root, "speak.js"), "utf8"), ctx);
 const ev = code => vm.runInContext(code, ctx);
+const J = x => JSON.parse(JSON.stringify(x));      // values from the vm have another realm's prototypes
 
 // ---- IPA data: every game word has IPA, sentences don't need it
 const items = ev(`LESSONS.flatMap(l=>l.items)`);
@@ -110,6 +111,42 @@ const mockRecorder = (denied) => ev(`
   await click();   // ignored while busy, then first finishes
   await new Promise(r => setTimeout(r, 300));
   assert.strictEqual(ev(`recBusy`), false);
+
+  // 8) recording length: normalisation, word vs sentence defaults, early stop only after the minimum
+  const N2 = (v, k) => J(ev(`normRec(${JSON.stringify(v)}, ${JSON.stringify(k)})`));
+  assert.deepStrictEqual(N2(undefined, "word"), [3, 6]); assert.deepStrictEqual(N2(undefined, "sen"), [4, 10]);
+  assert.deepStrictEqual(N2([2, 8], "word"), [2, 8]); assert.deepStrictEqual(N2(["5", "7.4"], "sen"), [5, 7]);
+  assert.deepStrictEqual(N2([0, 99], "word"), [3, 10], "0 means unset; above the limit is cut");
+  assert.deepStrictEqual(N2([99, 1], "word"), [10, 10], "max is never below min");
+  assert.deepStrictEqual(N2([-5, "x"], "sen"), [4, 10]); assert.deepStrictEqual(N2([1, 3], "sen"), [2, 3], "sentence minimum is 2 s");
+  assert.deepStrictEqual(N2("junk", "word"), [3, 6]); assert.deepStrictEqual(N2([8], "word"), [8, 8]);
+  assert.deepStrictEqual(J(ev(`recRangeOf(false)`)), {min: 3000, max: 6000}); assert.deepStrictEqual(J(ev(`recRangeOf(true)`)), {min: 4000, max: 10000});
+  ev(`globalThis.recRange = s => s ? {min: 2000, max: 3000} : {min: 1000, max: 2000}`);
+  assert.deepStrictEqual(J(ev(`recRangeOf(true)`)), {min: 2000, max: 3000}, "uses the parent's setting when srs.js is loaded");
+  ev(`delete globalThis.recRange`);
+  const ticks = [];
+  ctx.__tick = (l, c) => ticks.push([l, c]);
+  reset(); mockRecorder(false);
+  await ev(`recordClip(2000, 5000, (l, c) => __tick(l, c))`);
+  assert.deepStrictEqual(J(ticks), [[5, false], [4, false], [3, true], [2, true], [1, true]], "full length; stop allowed after the minimum");
+  ticks.length = 0; reset(); mockRecorder(false);
+  await ev(`recordClip(2000, 5000, (l, c) => { __tick(l, c); if(c) recStopNow(); })`);
+  assert.deepStrictEqual(J(ticks), [[5, false], [4, false], [3, true]], "stopping after the minimum ends the recording early");
+  ticks.length = 0; reset(); mockRecorder(false);
+  await ev(`recordClip(2000, 4000, (l, c) => { __tick(l, c); recStopNow(); })`);
+  assert.deepStrictEqual(J(ticks).map(t => t[0]), [4, 3, 2], "stopping before the minimum is ignored (stops at the minimum + first allowed tick)");
+  assert.strictEqual(ev(`recStopNow`), null, "stop hook is cleared afterwards");
+  // the countdown text and the stop button in the real flow (recorder only, sentence item)
+  reset(); mockRecorder(false);
+  ev(`globalThis.__seen = []; document.getElementById('recres');`);
+  ev(`Object.defineProperty(__box, 'innerHTML', {configurable: true, get(){ return this._h || ''; }, set(v){ this._h = v; __seen.push(v); }})`);
+  clickHandler({target: {closest: () => ({dataset: {act: "rec", en: "Alarm bells ring!", id: "s_alarm", s: "1"}, classList: {add(){}, remove(){}}})}});
+  await new Promise(r => setTimeout(r, 500));
+  const seen = J(ev(`__seen`)), at = n => seen.find(h => h.includes(`还剩 <b>${n}</b> 秒`));
+  assert(at(10), "sentence: counts down from its own max (10 s)");
+  assert(!at(10).includes("rec-stop") && !at(7).includes("rec-stop"), "no stop button before the sentence minimum (4 s)");
+  assert(at(6).includes("rec-stop"), "stop button once the minimum has passed");
+  ev(`delete __box.innerHTML; __box.innerHTML = ''`);
 
   console.log("ALL OK");
 })().catch(e => { console.error("FAIL:", e.stack || e); process.exit(1); });

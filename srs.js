@@ -44,7 +44,8 @@ function normCurve(c){
 const freshSRS = () => ({
   words: {}, daily: {day: 0, newCount: 0, done: false, news: []},   // news：今天新学的词
   doneDays: [], streak: 0, lastDone: 0,
-  cfg: {newPerDay: NEW_DEFAULT, enRate: 1, promptRate: 1, zh: "new", say: true, act: true},
+  cfg: {newPerDay: NEW_DEFAULT, enRate: 1, promptRate: 1, zh: "new", say: true, act: true,
+        recWord: [REC_KINDS.word.min, REC_KINDS.word.max], recSen: [REC_KINDS.sen.min, REC_KINDS.sen.max]},
   curve: freshCurve(),   // 遗忘曲线汇总：每个“隔了几天”档 [测试次数, 第一次就点对次数]
   story: {},             // 听故事排顺序：故事 id -> 完成次数
   log: []     // 逐题记录 {d:日期, k:词, ok:一次对, n:点几次, ms:反应毫秒, c:l学习/r遗忘测试/x巩固, p:第几次确认}
@@ -57,7 +58,8 @@ function normCfg(c){
   const rate = v => Math.round(clampNum(v, RATE_MIN, RATE_MAX, 1) * 10) / 10;
   return {newPerDay: Math.round(clampNum(n, NEW_MIN, NEW_MAX, NEW_DEFAULT)), enRate: rate(c.enRate), promptRate: rate(c.promptRate),
           zh: c.zh === "all" ? "all" : "new",      // 中文翻译：只在新词页 / 总是播
-          say: c.say !== false, act: c.act !== false};   // “说一说”、“动一动”开关，默认开
+          say: c.say !== false, act: c.act !== false,   // “说一说”、“动一动”开关，默认开
+          recWord: normRec(c.recWord, "word"), recSen: normRec(c.recSen, "sen")};   // 跟读录音时长 [最短, 最长] 秒（speak.js）
 }
 // 兼容旧版本存档、也防止导入的文件里有乱七八糟的内容：缺的字段补默认值，不合理的值收回到合理范围
 const intOr = (v, d) => { if(typeof v !== "number" && typeof v !== "string") return d; if(v === "") return d; v = Math.floor(+v); return isFinite(v) ? v : d; };
@@ -120,6 +122,11 @@ function rateFor(c){
   if(/^audio\/(en|en2|sen|sen2|act)\//.test(u)) return cfg.enRate;
   if(/^audio\/(zh|senzh|fx)\//.test(u)) return cfg.promptRate;
   return 1;
+}
+// 跟读录音时长（毫秒）：句子和单词分开设置。speak.js 的 doRec 用
+function recRange(isSen){
+  const c = normCfg(SRS.cfg), r = isSen ? c.recSen : c.recWord;
+  return {min: r[0] * 1000, max: r[1] * 1000};
 }
 // 不含逐题记录的纯进度文字（词的统计计数仍会保留）。家长页的“复制文字”用 account.js 里带名字的外壳
 function backupText(){ const o = Object.assign({}, SRS); delete o.log; return JSON.stringify(o); }
@@ -795,6 +802,14 @@ function parentPage(){
   const rate = rc ? Math.round(fg / rc * 100) + "%" : "—";
   const cfg = normCfg(SRS.cfg);
   const rv = v => Math.round(v * 10), rl = v => "×" + v.toFixed(1);
+  // 一组录音时长滑动条（最短、最长），key 形如 recWordMin / recSenMax
+  const recBlock = (K, label, pair, lim) => `
+      <div class="note" style="margin-top:10px"><b>${label}</b>　最短 <b id="v-rec${K}Min">${pair[0]}</b> 秒　最长 <b id="v-rec${K}Max">${pair[1]}</b> 秒</div>
+      <div class="note" style="margin:4px 0 0">最短</div>
+      <input type="range" class="rng" id="sl-rec${K}Min" min="${lim.lo}" max="${lim.hi}" step="1" value="${pair[0]}" data-set="rec${K}Min">
+      <div class="note" style="margin:4px 0 0">最长</div>
+      <input type="range" class="rng" id="sl-rec${K}Max" min="${lim.lo}" max="${lim.hi}" step="1" value="${pair[1]}" data-set="rec${K}Max">
+      <div class="rngrow"><span>${lim.lo} 秒</span><span>${lim.hi} 秒</span></div>`;
   const tg = (k, v, label, on) => `<button class="small-btn${on ? " on" : " ghost"}" data-act="p-set" data-k="${k}" data-v="${v}">${label}</button>`;
   const storyDone = Object.values(SRS.story).reduce((a, b) => a + b, 0);
   let hist = "", histN = 0;
@@ -858,6 +873,12 @@ function parentPage(){
       <button class="small-btn" data-act="p-try-prompt">🔊 试听提示</button>
       <button class="small-btn" data-act="p-try-en">🔊 试听英语</button>
       <div class="note" style="margin-top:6px">×1.0 是原速（英语本来就已经放慢了一点）。超过 ×1.5 或低于 ×0.7 时声音可能有点变调。个别手机浏览器（比如部分安卓微信）可能不支持变速，听起来没变化时请用系统浏览器打开。</div>
+    </div>
+    <div class="sec"><h3>跟读录音时长</h3>
+      <div class="note">点“跟读”后录多久，<b>单词</b>和<b>句子</b>可以分别设。“最短”：录满这个时间后，孩子才能点“✋ 说完了”提前结束；“最长”：到时间自动停止。超过 5 岁的孩子或句子较长时可以调长一些。</div>
+      ${recBlock("Word", "单词", cfg.recWord, REC_KINDS.word)}
+      ${recBlock("Sen", "句子", cfg.recSen, REC_KINDS.sen)}
+      <div class="note" style="margin-top:10px">说明：有语音识别的浏览器（如 iPhone Safari）说完就会自动结束，“最长”是上限，“最短”不起作用；只能录音回放的浏览器（如微信）两个值都起作用。</div>
     </div>
     <div class="sec"><h3>最近 30 天打卡</h3><div class="note" style="margin-top:0">最近 30 天里打卡了 <b>${histN}</b> 天</div><div class="hist">${hist}</div></div>
     ${typeof accountSection === "function" ? accountSection() : ""}
@@ -923,6 +944,22 @@ document.addEventListener("click", e => {
 // 家长页的滑动条：拖动时实时保存并更新数字，语速条松手后试听一句
 function applySetting(key, raw){
   const cfg = normCfg(SRS.cfg);
+  const rm = /^rec(Word|Sen)(Min|Max)$/.exec(key);
+  if(rm){
+    const f = "rec" + rm[1], kind = rm[1] === "Word" ? "word" : "sen", lim = REC_KINDS[kind], i = rm[2] === "Min" ? 0 : 1;
+    const v = Math.round(+raw);
+    if(!isFinite(v)) return null;
+    const p = cfg[f].slice();
+    p[i] = Math.min(lim.hi, Math.max(lim.lo, v));
+    if(i === 0 && p[0] > p[1]) p[1] = p[0];          // 最短拉到超过最长：最长跟着往后移
+    if(i === 1 && p[1] < p[0]) p[0] = p[1];          // 最长拉到低于最短：最短跟着往前移
+    cfg[f] = p; SRS.cfg = cfg; saveSRS();
+    [["Min", 0], ["Max", 1]].forEach(([n, j]) => {
+      const lab = document.getElementById("v-" + f + n); if(lab) lab.textContent = p[j];
+      const sl = document.getElementById("sl-" + f + n); if(sl && String(sl.value) !== String(p[j])) sl.value = p[j];
+    });
+    return cfg;
+  }
   if(key === "newPerDay") cfg.newPerDay = Math.round(clampNum(raw, NEW_MIN, NEW_MAX, NEW_DEFAULT));
   else if(key === "enRate" || key === "promptRate") cfg[key] = Math.round(clampNum(raw / 10, RATE_MIN, RATE_MAX, 1) * 10) / 10;
   else return null;
@@ -938,7 +975,7 @@ document.addEventListener("input", e => {
 });
 document.addEventListener("change", e => {
   const el = e.target;
-  if(!el || !el.dataset || !el.dataset.set || el.dataset.set === "newPerDay") return;
+  if(!el || !el.dataset || !el.dataset.set || el.dataset.set === "newPerDay" || /^rec/.test(el.dataset.set)) return;
   applySetting(el.dataset.set, el.value);
   const t = el.dataset.set === "enRate" ? "p-try-en" : "p-try-prompt";
   const btn = document.querySelector(`[data-act="${t}"]`);
