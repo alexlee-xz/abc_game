@@ -26,7 +26,7 @@ function cloudSection(){
       <button class="small-btn" data-act="c-now">🔄 立即同步</button>
       <button class="small-btn" data-act="c-link">🔗 复制加入链接</button>
       <textarea id="cl" readonly placeholder="点“复制加入链接”后显示在这里。发到另一台设备打开，就能加入"></textarea>
-      <div class="note">在另一台设备上：打开游戏，家长页 → 账户与备份 → 用同步码加入（或直接打开上面的加入链接）。小朋友最多 ${PROF_MAX} 个，一起同步。</div>
+      <div class="note">在另一台设备上：打开游戏，家长页 → 账户与备份 → 用同步码加入（或直接打开上面的加入链接）。每台设备最多 ${PROF_MAX} 个小朋友，开启后会一起同步。</div>
       <details data-keep="cdanger"${keepOpen("cdanger")} style="margin-top:8px">
         <summary>⚠️ 退出 / 删除云端数据</summary>
         <div><button class="small-btn ghost" data-act="c-leave">在这台设备上退出云同步</button></div>
