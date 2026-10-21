@@ -11,7 +11,7 @@ compatibility_date = "2025-01-01"
 [[d1_databases]]
 binding = "DB"
 database_name = "abc-sync"
-database_id = "REPLACE_WITH_YOUR_DATABASE_ID"
+database_id = "454c21c8-9e02-4c19-900f-d53f87fe1b9b"
 
 # 可选：只允许你的网页来源访问（逗号分隔）。不填就不限制（有同步码才能读写，不填也安全）。
 # [vars]

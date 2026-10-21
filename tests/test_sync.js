@@ -73,7 +73,11 @@ function makeDevice(net){
     const playSeq = async () => true;
     const home = () => { app.innerHTML = 'HOME'; };
   `);
-  FILES.forEach(f => vm.runInContext(fs.readFileSync(path.join(root, f), "utf8"), ctx));
+  FILES.forEach(f => {
+    let src = fs.readFileSync(path.join(root, f), "utf8");
+    if(f.endsWith("sync.js")) src = src.replace(/const SYNC_URL = "[^"]*";/, 'const SYNC_URL = "";');   // the tests type the address in themselves
+    vm.runInContext(src, ctx);
+  });
   run(`PARENT_GATE = false;`);
   const d = {ctx, store, handlers, timers, els, net, ev: run,
     sync: () => run(`syncNow()`),

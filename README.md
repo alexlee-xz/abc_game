@@ -120,7 +120,7 @@
    npx wrangler deploy
    ```
 3. 最后一条会输出一个网址，形如 `https://abc-sync.你的名字.workers.dev`，这就是“云服务地址”。浏览器打开 `网址/api/ping`，看到 `{"ok":true,...}` 就说明部署成功。
-4. 把这个地址填到 [js/core/sync.js](js/core/sync.js) 最前面的 `SYNC_URL`（这样每台设备不用再输入），把 [index.html](index.html) 里的 `?v=` 数字加 1，提交推送。不填也可以：家长页里开启时会让你手动输入地址（之后“加入链接”里会带着地址）。
+4. 把这个地址填到 [js/core/sync.js](js/core/sync.js) 最前面的 `SYNC_URL`（这样每台设备不用再输入；**本项目已经填好**），把 [index.html](index.html) 里的 `?v=` 数字加 1，提交推送。不填也可以：家长页里开启时会让你手动输入地址（之后“加入链接”里会带着地址）。
 
 想限制只有你的网页能访问云端，可以在 `wrangler.toml` 里打开 `ORIGINS`。注意：`workers.dev` 域名在国内偶尔会被干扰，如果你的网络环境打不开，可以给 Worker 绑一个自己的域名（Cloudflare 后台 → Workers → Settings → Domains），地址换成那个即可。
 

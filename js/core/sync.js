@@ -7,9 +7,8 @@
    本文件只管数据，不画页面；页面在 pages/cloud.js。依赖 profile.js、srs.js（normSRS 等）。 */
 
 const SYNC_KEY = "abc_sync_v1";
-// 部署好 Cloudflare Worker 后，把它的地址填在这里（如 "https://abc-sync.xxx.workers.dev"），
-// 这样家长页里就不用每台设备再输入一遍。留空也行，家长页会让你填。
-const SYNC_URL = "";
+// Cloudflare Worker 的地址（部署方法见 README）。填了以后家长页里就不用再手动输入；留空则家长页会让你填。
+const SYNC_URL = "https://abc-sync.alexlee10100110.workers.dev";
 const SYNC_PUSH_MS = 4000, SYNC_PUSH_MAXWAIT = 12000, SYNC_POLL_MS = 30000, SYNC_TIMEOUT_MS = 15000;
 const CODE_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789", CODE_LEN = 20;     // 去掉了容易看错的 0 O 1 I L
 
