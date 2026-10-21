@@ -1,10 +1,10 @@
 /* 语音播放层（play.js）的测试：用一个可控的假 Audio 在 node 里复现各种“坏情况”。
-   运行：node tools/test_play.js
+   运行：node tests/test_play.js
    加 --mutate 会故意把修复还原成旧毛病，确认测试真的能抓到它（应该看到失败）。 */
 const fs = require("fs"), path = require("path"), vm = require("vm");
 
 const MUTATE = process.argv.includes("--mutate");
-let code = fs.readFileSync(path.join(__dirname, "..", "play.js"), "utf8");
+let code = fs.readFileSync(path.join(__dirname, "..", "js", "audio", "play.js"), "utf8");
 if(MUTATE){
   // 还原旧毛病：被打断(AbortError)的旧 play() 的失败回调，把当前 Audio 上的回调清掉
   const needle = "if(!mine() || finished) return;";

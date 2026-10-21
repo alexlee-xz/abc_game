@@ -19,8 +19,8 @@
 <div class="g" id="g"></div>
 <h1>在“还没学会”的小花园里（灰色）</h1>
 <div class="g gray" id="g2"></div>
-<script src="../data.js"></script>
-<script src="../art.js"></script>
+<script src="../js/content/data.js"></script>
+<script src="../js/content/art.js"></script>
 <script>
 const seen = new Set(), items = [];
 LESSONS.forEach(l => l.items.forEach(it => { const k = ART_ALIAS[it.id] || it.id; if(!seen.has(k)){ seen.add(k); items.push(it); } }));

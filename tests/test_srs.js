@@ -1,4 +1,4 @@
-// Offline test for srs.js (no browser needed):  node tools/test_srs.js
+// Offline test for srs.js (no browser needed):  node tests/test_srs.js
 const vm = require("vm");
 const fs = require("fs");
 const path = require("path");
@@ -40,24 +40,24 @@ const prelude = `
   const actClip=it=>clip('act',it.id,(ACTS[it.id]||{}).en,'en');
   const fx = id => { const f = FX.find(x=>x.id===id); return f ? clip('fx',id,f.text,f.lang) : null; };
   const promptClips = it => [it.sen ? senClip(it) : enClip(it)];
-  const home = () => { session++; app.innerHTML = '<h1>ABC</h1>' + homeQuestHtml(); };      // index.html has the real home()
+  const home = () => { session++; app.innerHTML = '<h1>ABC</h1>' + homeQuestHtml(); };      // js/app.js has the real home()
 `;
 ctx.__store = store;
 ctx.__alerts = []; ctx.__downloads = []; ctx.__confirmAns = true; ctx.__promptAns = null;
 ctx.__addHandler = (t, f) => { ({click: clickHandlers, input: inputHandlers, change: changeHandlers, keydown: keyHandlers}[t] || []).push(f); };
 
-vm.runInContext(fs.readFileSync(path.join(root, "data.js"), "utf8"), ctx);
-vm.runInContext(fs.readFileSync(path.join(root, "art.js"), "utf8"), ctx);
+vm.runInContext(fs.readFileSync(path.join(root, "js/content/data.js"), "utf8"), ctx);
+vm.runInContext(fs.readFileSync(path.join(root, "js/content/art.js"), "utf8"), ctx);
 vm.runInContext(prelude, ctx);
 // speak.js provides ipaHtml/recHtml used by the new-word page (its click listener is harmless here)
 vm.runInContext("globalThis.window = globalThis; globalThis.navigator = {};", ctx);
 ctx.btoa = btoa; ctx.atob = atob;
 vm.runInContext(`globalThis.location = {href: "https://alexlee-xz.github.io/abc_game/", hash: "", pathname: "/abc_game/", search: ""};
   globalThis.history = {replaceState(){ location.hash = ""; }};`, ctx);
-vm.runInContext(fs.readFileSync(path.join(root, "speak.js"), "utf8"), ctx);
-vm.runInContext(fs.readFileSync(path.join(root, "profile.js"), "utf8"), ctx);
-vm.runInContext(fs.readFileSync(path.join(root, "srs.js"), "utf8"), ctx);
-vm.runInContext(fs.readFileSync(path.join(root, "account.js"), "utf8"), ctx);
+vm.runInContext(fs.readFileSync(path.join(root, "js/audio/speak.js"), "utf8"), ctx);
+vm.runInContext(fs.readFileSync(path.join(root, "js/core/profile.js"), "utf8"), ctx);
+["core/srs.js", "pages/quest.js", "pages/story.js", "pages/garden.js", "pages/parent.js"].forEach(f => vm.runInContext(fs.readFileSync(path.join(root, "js", f), "utf8"), ctx));
+vm.runInContext(fs.readFileSync(path.join(root, "js/pages/account.js"), "utf8"), ctx);
 const ev = code => vm.runInContext(code, ctx);
 // values coming out of the vm have another realm's prototypes; JSON round-trip for deep comparisons
 const J = x => JSON.parse(JSON.stringify(x));

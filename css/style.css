@@ -1,0 +1,128 @@
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{margin:0; height:100%}
+  body{
+    font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background:linear-gradient(#fff3e0,#ffe0b2); color:#4e342e; text-align:center;
+    touch-action:manipulation; user-select:none; -webkit-user-select:none;
+  }
+  #app{max-width:480px; margin:0 auto; padding:14px 14px 30px; min-height:100%}
+  h1{font-size:26px; color:#e65100; margin:10px 0 2px}
+  h2{font-size:22px; color:#e65100; margin:6px 0}
+  .sub{color:#8d6e63; font-size:14px; margin-bottom:16px}
+  .top{display:flex; align-items:center; justify-content:space-between; min-height:44px}
+  .back{background:#fff; color:#e65100; box-shadow:0 3px 0 #ffcc80; font-size:16px; padding:8px 14px; margin:0}
+  button{
+    font-family:inherit; font-size:20px; padding:14px 22px; border:none; border-radius:18px;
+    background:#ff7043; color:#fff; box-shadow:0 5px 0 #d84315; cursor:pointer;
+  }
+  button:active{transform:translateY(3px); box-shadow:0 2px 0 #d84315}
+  .big{display:block; width:100%; margin:18px 0; padding:22px 10px; font-size:24px}
+  .big small{display:block; font-size:14px; opacity:.9; margin-top:4px}
+  .big.green{background:#43a047; box-shadow:0 5px 0 #2e7d32}
+  .big.blue{background:#1e88e5; box-shadow:0 5px 0 #1565c0}
+  .big.green:active,.big.blue:active{box-shadow:0 2px 0 rgba(0,0,0,.3)}
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:12px}
+  .card{
+    background:#fff; border-radius:22px; padding:14px 8px;
+    box-shadow:0 5px 0 #ffcc80; min-height:130px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+  }
+  .card:active{transform:translateY(3px); box-shadow:0 2px 0 #ffcc80}
+  .emoji{font-size:54px; line-height:1.15}
+  .emoji svg{width:1em; height:1em; display:inline-block; vertical-align:middle}
+  .en{font-size:19px; font-weight:700; margin-top:6px}
+  .zh{font-size:15px; color:#8d6e63; margin-top:2px}
+  .card.sentence{grid-column:1 / 3; flex-direction:row; gap:12px; min-height:90px}
+  .card.sentence .txt{text-align:left}
+  .card.sentence .emoji{font-size:44px}
+  /* 游戏 */
+  .dots{font-size:18px; letter-spacing:3px; min-height:26px; margin:6px 0}
+  .speaker{width:110px; height:110px; border-radius:55px; font-size:50px; padding:0; margin:14px auto; display:block}
+  .choices{display:grid; grid-template-columns:1fr; gap:14px; margin-top:10px}
+  .choices.w{grid-template-columns:1fr 1fr 1fr}
+  .choices.w .card{min-height:130px}
+  .choices.w4{grid-template-columns:1fr 1fr}
+  .choices.story .card{min-height:120px}
+  .choices.story .emoji{font-size:38px}
+  .card{position:relative}
+  .badge{position:absolute; top:6px; left:10px; font-size:24px; color:#2e7d32; font-weight:700}
+  .big.locked{background:#e0e0e0; color:#757575; box-shadow:0 5px 0 #bdbdbd; border-radius:18px; font-size:20px}
+  .row .ok{background:#43a047; box-shadow:0 4px 0 #2e7d32}
+  .card.hint{background:#fffde7; box-shadow:0 0 0 5px #ffd54f, 0 5px 0 #ffb300; animation:glow .8s infinite}
+  @keyframes glow{50%{transform:scale(1.07)}}
+  .card.correct{background:#c8f7c5; box-shadow:0 5px 0 #85c98a; animation:pop .5s}
+  .card.wrong{background:#ffd6d6; box-shadow:0 5px 0 #e29a9a; animation:shake .4s}
+  @keyframes pop{50%{transform:scale(1.12)}}
+  @keyframes shake{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+  .stars{font-size:40px; margin:10px 0}
+  /* 详情浮层 */
+  #detail{
+    position:fixed; inset:0; background:rgba(0,0,0,.45); display:none;
+    align-items:center; justify-content:center; padding:18px; z-index:10;
+  }
+  #detail.show{display:flex}
+  .panel{background:#fff; border-radius:28px; padding:22px 16px; width:100%; max-width:420px; max-height:94vh; overflow-y:auto}
+  /* 音标 + 跟读 */
+  .ipa{font-family:"Lucida Sans Unicode","Arial Unicode MS","Noto Sans","Segoe UI",system-ui,sans-serif; color:#5c6bc0; font-size:15px; margin-top:2px; letter-spacing:.3px}
+  .panel .ipa,.card.teach .ipa{font-size:20px; margin-top:4px}
+  button.rec{background:#e53935; box-shadow:0 4px 0 #b71c1c; font-size:18px; padding:10px 20px; margin-top:14px}
+  button.rec.rec-on{animation:pulse .8s infinite}
+  @keyframes pulse{50%{transform:scale(1.07)}}
+  .recres{min-height:20px; margin-top:10px; font-size:18px; color:#4e342e}
+  .recres .stars2{font-size:34px}
+  .recres .small{font-size:12px; color:#8d6e63; margin-top:4px; line-height:1.5}
+  .panel .emoji{font-size:96px}
+  .panel .en{font-size:30px; margin-top:8px}
+  .panel .zh{font-size:22px}
+  .panel .sen{font-size:20px; color:#e65100; margin-top:12px; font-weight:600}
+  .panel .senzh{font-size:15px; color:#8d6e63}
+  .row{display:flex; gap:10px; justify-content:center; margin-top:16px; flex-wrap:wrap}
+  .row button{font-size:18px; padding:12px 16px}
+  .row .ghost{background:#eee; color:#555; box-shadow:0 4px 0 #ccc}
+  .footer{margin-top:24px; font-size:12px; color:#a1887f; line-height:1.7}
+  .footer span{padding:8px 12px; display:inline-block}
+  /* 魔法任务 / 小花园 / 家长页 */
+  .big.quest{background:linear-gradient(#ab47bc,#8e24aa); box-shadow:0 5px 0 #6a1b9a}
+  .chips{margin:4px 0 2px}
+  .chip{display:inline-block; background:#fff; border-radius:20px; padding:6px 14px; font-size:15px; color:#e65100; box-shadow:0 2px 0 #ffcc80}
+  .sec-title{margin:18px 0 0; font-size:15px; color:#8d6e63}
+  .fb{min-height:30px; font-size:20px; color:#2e7d32; font-weight:700; margin:2px 0 8px}
+  .card.teach{padding:24px 12px; min-height:260px; margin-top:10px}
+  .card.teach .emoji{font-size:110px}
+  .card.teach .emoji svg{margin:-4px 0}
+  .card.teach .en{font-size:32px}
+  .card.teach .zh{font-size:22px}
+  .card.teach .sen{font-size:18px; color:#e65100; margin-top:10px; font-weight:600}
+  .grid3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-top:12px}
+  .card.mini{min-height:120px; padding:8px 2px}
+  .card.mini .emoji{font-size:38px}
+  .card.mini .en{font-size:14px; margin-top:2px}
+  .stage{font-size:26px; position:relative; line-height:1.2}
+  .drop{position:absolute; right:-20px; top:-4px; font-size:16px}
+  .card.locked{opacity:.45; filter:grayscale(1)}
+  .sec{background:#fff; border-radius:18px; padding:12px 14px; margin:12px 0; text-align:left; box-shadow:0 3px 0 #ffcc80}
+  .sec h3{margin:0 0 8px; font-size:16px; color:#e65100}
+  .sec .line{font-size:14px; padding:5px 0; display:flex; justify-content:space-between; border-bottom:1px dashed #eee}
+  .sec .note{font-size:13px; color:#795548; line-height:1.6}
+  .hist{display:grid; grid-template-columns:repeat(7,1fr); gap:4px}
+  .hw{text-align:center; font-size:12px; color:#8d6e63}
+  .hd{display:flex; flex-direction:column; align-items:center; font-size:16px}
+  .hd i{font-size:9px; color:#999; font-style:normal}
+  .hd.today{background:#fff3e0; border-radius:8px}
+  .tip{padding:7px 0; border-bottom:1px dashed #eee; font-size:15px}
+  .tip:last-child{border-bottom:0}
+  .temo svg{width:22px; height:22px; vertical-align:middle}
+  .tag{font-size:11px; color:#fff; background:#ffa726; border-radius:8px; padding:1px 6px; vertical-align:middle}
+  textarea{width:100%; height:90px; font-size:12px; border-radius:10px; border:1px solid #ddd; padding:6px; margin-top:8px; -webkit-user-select:text; user-select:text}
+  .small-btn{font-size:14px; padding:8px 14px; margin:8px 6px 0 0; border-radius:12px; box-shadow:0 3px 0 #d84315}
+  .small-btn.ghost{background:#eee; color:#555; box-shadow:0 3px 0 #ccc}
+  .small-btn.on{background:#43a047; box-shadow:0 3px 0 #2e7d32}
+  .dots.tiny{font-size:13px; letter-spacing:1px}
+  .rng{width:100%; margin:8px 0 0; accent-color:#ff7043}
+  .rngrow{display:flex; justify-content:space-between; font-size:12px; color:#999}
+  input.nm{width:100%; font-size:22px; padding:12px; text-align:center; border:2px solid #ffcc80; border-radius:14px; font-family:inherit; color:#4e342e; -webkit-user-select:text; user-select:text; outline:none}
+  input.nm:focus{border-color:#ff7043}
+  .fb.err{color:#d84315; font-size:15px; min-height:22px; margin:6px 0 0}
+  .note-c{font-size:13px; color:#8d6e63; line-height:1.7; margin:8px 4px}
+  .prof{padding:8px 0; border-bottom:1px dashed #eee}
+  .sec .note.warn{color:#d84315; background:#fff3e0; border-radius:8px; padding:6px 8px; margin:8px 0}

@@ -1,5 +1,5 @@
 /* ============ 音标显示 + 跟读打分 ============
-   依赖 index.html 里的全局：token, player, playSeq, clip, fx, sleep。
+   依赖 play.js / app.js 里的全局：token, player, playSeq, clip, fx, sleep。
 
    跟读的三档能力（按浏览器自动选择）：
    1. 有语音识别（iOS Safari、部分 Android 浏览器）：识别孩子说的话，和目标单词比对，打 1~3 颗星。

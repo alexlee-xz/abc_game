@@ -21,7 +21,7 @@ ZH_RATE = "-5%"
 
 
 def load(name: str):
-    text = (ROOT / "data.js").read_text(encoding="utf-8")
+    text = (ROOT / "js" / "content" / "data.js").read_text(encoding="utf-8")
     m = re.search(rf"const {name} = (.*?);\s*(?:\n//|\nconst|\Z)", text, re.S)
     return json.loads(m.group(1))
 

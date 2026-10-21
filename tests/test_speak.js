@@ -1,4 +1,4 @@
-// Offline test for speak.js (scoring + the 4 browser-capability paths):  node tools/test_speak.js
+// Offline test for speak.js (scoring + the 4 browser-capability paths):  node tests/test_speak.js
 const vm = require("vm");
 const fs = require("fs");
 const path = require("path");
@@ -9,7 +9,7 @@ const ctx = vm.createContext({console, setTimeout, clearTimeout, setImmediate});
 let clickHandler = null;
 ctx.__setHandler = f => { clickHandler = f; };
 
-vm.runInContext(fs.readFileSync(path.join(root, "data.js"), "utf8"), ctx);
+vm.runInContext(fs.readFileSync(path.join(root, "js/content/data.js"), "utf8"), ctx);
 vm.runInContext(`
   globalThis.window = globalThis;
   const box = {innerHTML: ""};
@@ -31,7 +31,7 @@ vm.runInContext(`
   const clip = (kind,id,text,lang)=>({url:'audio/'+kind+'/'+id+'.mp3',text,lang});
   const fx = id => { const f = FX.find(x=>x.id===id); if(!f) throw new Error('missing fx '+id); return clip('fx',id,f.text,f.lang); };
 `, ctx);
-vm.runInContext(fs.readFileSync(path.join(root, "speak.js"), "utf8"), ctx);
+vm.runInContext(fs.readFileSync(path.join(root, "js/audio/speak.js"), "utf8"), ctx);
 const ev = code => vm.runInContext(code, ctx);
 const J = x => JSON.parse(JSON.stringify(x));      // values from the vm have another realm's prototypes
 

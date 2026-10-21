@@ -2,13 +2,13 @@
 <meta charset="utf-8">
 <title>art check</title>
 <pre id="out">running...</pre>
-<script src="../data.js"></script>
-<script src="../art.js"></script>
+<script src="../js/content/data.js"></script>
+<script src="../js/content/art.js"></script>
 <script>
 // Renders every picture in a real browser and checks them mechanically:
 //   * well-formed SVG                       * nothing touches the canvas edge (nothing is clipped)
 //   * sensible amount of ink / fill         * no two pictures are nearly identical
-// Run (headless Edge, local server on :8765):  see README "开发者" notes or tools/browser_test.html for the command.
+// Run (headless Edge, local server on :8765):  see README "开发者" notes or tests/browser_test.html for the command.
 const out = document.getElementById("out"), log = [];
 const S = 128;
 const load = svg => new Promise((res, rej) => {

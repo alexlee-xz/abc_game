@@ -1,5 +1,5 @@
 /* ============ 小朋友账户页面 + 记录导入导出 + 每周小结 ============
-   依赖 srs.js / profile.js 的全局，以及 index.html 里的 app, session, token, player, home。
+   依赖 srs.js / profile.js 的全局，以及 app.js 里的 app, session, token, player, home。
    本文件有自己的 click / change / keydown 监听，只处理自己的 data-act。 */
 
 const escName = s => String(s).replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
