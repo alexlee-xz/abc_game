@@ -1,0 +1,18 @@
+# Cloudflare Worker 配置。部署步骤见 README 的“云同步”一节：
+#   cd cloud
+#   npx wrangler login
+#   npx wrangler d1 create abc-sync           # 把输出里的 database_id 填到下面
+#   npx wrangler d1 execute abc-sync --remote --file=schema.sql
+#   npx wrangler deploy                       # 输出的 https://abc-sync.<你的子域>.workers.dev 就是“云服务地址”
+name = "abc-sync"
+main = "worker.mjs"
+compatibility_date = "2025-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "abc-sync"
+database_id = "REPLACE_WITH_YOUR_DATABASE_ID"
+
+# 可选：只允许你的网页来源访问（逗号分隔）。不填就不限制（有同步码才能读写，不填也安全）。
+# [vars]
+# ORIGINS = "https://alexlee-xz.github.io"

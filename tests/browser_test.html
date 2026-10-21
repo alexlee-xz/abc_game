@@ -177,6 +177,7 @@ f.addEventListener("load", async () => {
   click('[data-act="p-copy-wk"]'); await sleep(200);
   click('[data-act="p-tab"][data-t="acct"]'); await sleep(100);
   log.push("account tab: accounts=" + d.getElementById("app").innerText.includes("小朋友账户") + " paste box=" + !!d.getElementById("bk") + " copyText button=" + !!d.querySelector('[data-act="p-copy"]') + " (expect false) dangerFolded=" + !d.querySelector('details[data-keep="danger"]').open + " deleteButtons=" + d.querySelectorAll('[data-act="prof-delete"]').length);
+  log.push(d.getElementById("app").innerText.includes("云同步") && d.querySelector('[data-act="c-create"]') && d.getElementById("cu") ? "cloud section: shown, off by default" : "ERROR: cloud section missing on the account tab (real index.html scripts)");
   // download: intercept the anchor click, read the Blob back
   let dl = null; const realCreate = w.URL.createObjectURL; w.URL.createObjectURL = b => { dl = b; return realCreate.call(w.URL, b); };
   const origClick = w.HTMLAnchorElement.prototype.click; w.HTMLAnchorElement.prototype.click = function(){ log.push("download requested: " + this.download); };

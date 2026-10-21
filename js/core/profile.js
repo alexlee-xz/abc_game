@@ -1,5 +1,5 @@
 /* ============ 小朋友账户：按名字分开保存学习记录 ============
-   所有数据都在本机 localStorage 里（不上传服务器）：
+   所有数据都先存在本机 localStorage 里（默认不上传服务器；开启云同步后由 sync.js 同步）：
    • abc_profiles_v1        账户列表 {v, cur, list:[{id, name, created, exported}]}
    • abc_srs_v1__<id>       每个小朋友一份学习记录（结构见 srs.js 的 freshSRS）
    • abc_srs_v1             旧版（没有账户时）的学习记录，第一次输入名字时并入那个账户
@@ -11,6 +11,9 @@ const LEGACY_KEY = "abc_srs_v1";
 const PROF_MAX = 6;
 const NAME_MAX = 12;
 const srsKeyOf = id => "abc_srs_v1__" + id;
+// 传送链接（account.js）和云同步链接（sync.js）都用的 base64url 编码
+const b64enc = s => btoa(unescape(encodeURIComponent(s))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const b64dec = c => { c = c.replace(/-/g, "+").replace(/_/g, "/"); while(c.length % 4) c += "="; return decodeURIComponent(escape(atob(c))); };
 
 // 名字：去掉控制字符和首尾空格，最多 12 个字。显示时仍要转义（见 account.js 的 escName）
 function cleanName(s){
@@ -98,11 +101,14 @@ function renameProfile(id, name){
   if(!name) return {err: "名字不能是空的"};
   if(PROFS.list.some(x => x.id !== id && sameName(x.name, name))) return {err: "已经有这个名字啦"};
   p.name = name; saveProfs();
+  if(typeof syncTouch === "function") syncTouch(id);      // 改名也要同步到云端
   return {ok: p};
 }
-function deleteProfile(id){
+// quiet=true：这次删除是因为云端已经删了（不要再告诉云端）
+function deleteProfile(id, quiet){
   const p = profById(id);
   if(!p) return false;
+  if(!quiet && typeof syncForget === "function") syncForget(id);
   PROFS.list = PROFS.list.filter(x => x.id !== id);
   try{ localStorage.removeItem(srsKeyOf(id)); }catch(e){}
   if(PROFS.cur === id){
@@ -112,6 +118,32 @@ function deleteProfile(id){
     try{ Q = null; S = null; }catch(e){}
   }else saveProfs();
   return true;
+}
+// 云同步用：把本机的账户 id 换成云端的 id（同名的小朋友在两台设备上各建了一份时，认成同一个人）
+function rekeyProfile(oldId, newId){
+  const p = profById(oldId);
+  if(!p || profById(newId) || !/^[\w-]{1,40}$/.test(newId)) return false;
+  try{
+    const raw = localStorage.getItem(srsKeyOf(oldId));
+    if(raw != null){ localStorage.setItem(srsKeyOf(newId), raw); localStorage.removeItem(srsKeyOf(oldId)); }
+  }catch(e){ return false; }
+  p.id = newId;
+  if(PROFS.cur === oldId) PROFS.cur = newId;
+  saveProfs();
+  return true;
+}
+// 云同步用：云端有、本机没有的小朋友，按云端的 id 建一个账户（不切换当前账户，除非本机还没有账户）
+function adoptProfile(id, name, srs){
+  if(profById(id) || !/^[\w-]{1,40}$/.test(id) || PROFS.list.length >= PROF_MAX) return null;
+  const base = cleanName(name) || "小朋友";
+  let nm = base, i = 2;
+  while(PROFS.list.some(p => sameName(p.name, nm))) nm = cleanName(base.slice(0, NAME_MAX - 2) + i++);
+  const p = {id, name: nm, created: Date.now(), exported: 0};
+  PROFS.list.push(p);
+  try{ localStorage.setItem(srsKeyOf(id), JSON.stringify(srs)); }catch(e){}
+  if(!PROFS.cur){ PROFS.cur = id; SRS = loadSRS(); }
+  saveProfs();
+  return p;
 }
 // 读某个账户保存的学习记录（当前账户直接用内存里最新的）
 function srsOf(id){

@@ -1,12 +1,12 @@
 # Run every check:  powershell -NoProfile -File tests\run_all.ps1
-#   - node tests (play layer, speak/recording, srs + accounts + transfer link)
+#   - node tests (play layer, speak/recording, srs + accounts + transfer link, cloud sync incl. the Worker on SQLite)
 #   - headless Edge pages (art_check, browser_test) against a temporary local server on :8765
 # Needs node and the project's Python venv (..\.venv) for the static server.
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 $fail = 0
 
-foreach($t in "test_play", "test_speak", "test_srs"){
+foreach($t in "test_play", "test_speak", "test_srs", "test_sync"){
     $out = (& node "tests/$t.js" 2>&1 | Out-String)
     $ok = $LASTEXITCODE -eq 0 -and $out -match "ALL OK"
     "{0,-12} {1}" -f $t, $(if($ok){"ok"}else{"FAILED"})

@@ -966,7 +966,11 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
     const r = ev(`importAndShow(${JSON.stringify(file)})`);
     assert.strictEqual(r.mode, "new"); assert(/导入成功：Lily/.test(ctx.__alerts[0]));
     assert.strictEqual(ev(`curProfile().name`), "Lily");
-    assert.deepStrictEqual(J(ev(`SRS.words`)), before.words); assert.strictEqual(ev(`SRS.story.fire`), 2);
+    // importing is an "overwrite": the words get a fresh timestamp (so cloud sync does not merge older data back over them)
+    const got = J(ev(`SRS.words`));
+    Object.keys(got).forEach(k => { assert(got[k].updated > 0, "imported word is stamped"); delete got[k].updated; });
+    assert.deepStrictEqual(got, before.words); assert.strictEqual(ev(`SRS.story.fire`), 2);
+    assert(ev(`SRS.resetAt`) > 0, "import marks resetAt");
     assert(/连续/.test(ev(`app.innerHTML`)), "went to the home page");
     // same name again: asks before overwriting
     seed("pole", {box: 1}); ev(`saveSRS()`);
@@ -1060,6 +1064,7 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
     const r = ev(`importRecord(${JSON.stringify(link)})`);
     assert.strictEqual(r.mode, "new"); assert.strictEqual(ev(`curProfile().name`), "小明😀", "name incl. emoji survives");
     const after = J(ev(`SRS`));
+    Object.keys(after.words).forEach(k => delete after.words[k].updated);      // import stamps the words (see the file round trip above)
     assert.deepStrictEqual(after.words, before.words, "all word progress survives");
     ["doneDays", "streak", "story", "cfg", "daily", "lastDone"].forEach(k => assert.deepStrictEqual(after[k], before[k], k + " survives"));
     assert.deepStrictEqual(after.log, [], "the per-question log is not carried (keeps the link short)");

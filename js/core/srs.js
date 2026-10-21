@@ -74,6 +74,7 @@ function normWords(w){
       lastGood: x.lastGood == null ? null : intOr(x.lastGood, null),
       rc: Math.max(0, intOr(x.rc, 0)), fg: Math.max(0, intOr(x.fg, 0)), lw: Math.max(0, intOr(x.lw, 0))};
     if(x.born != null && isFinite(+x.born)) o.born = intOr(x.born, 0);
+    if(x.updated != null && isFinite(+x.updated)) o.updated = intOr(x.updated, 0);   // 最后一次改动的时间（毫秒），云同步用来判断哪边更新
     r[k] = o;
   });
   return r;
@@ -98,16 +99,23 @@ function normSRS(o){
   s.cfg = normCfg(o.cfg);
   s.curve = normCurve(o.curve);
   s.story = normStory(o.story);
+  s.cfgAt = Math.max(0, intOr(o.cfgAt, 0));        // 设置最后一次改动的时间（云同步：设置以较新的一边为准）
+  s.resetAt = Math.max(0, intOr(o.resetAt, 0));    // 最后一次“清空进度 / 覆盖导入”的时间（云同步：这之前的旧记录不再合并回来）
   return s;
 }
+// 每个账户上次保存时的设置（JSON 文本）：saveSRS 靠它发现“设置变了”，给 cfgAt 打时间戳
+const CFG_SNAP = {};
 function loadSRS(){
   const key = curKey();
   if(!key) return freshSRS();
+  let r = null;
   try{
     const s = JSON.parse(localStorage.getItem(key));
-    if(s && typeof s.words === "object") return normSRS(s);
+    if(s && typeof s.words === "object") r = normSRS(s);
   }catch(e){}
-  return freshSRS();
+  r = r || freshSRS();
+  CFG_SNAP[key] = JSON.stringify(normCfg(r.cfg));
+  return r;
 }
 let SRS = loadSRS();
 SRS.cfg = normCfg(SRS.cfg);
@@ -132,7 +140,11 @@ function recRange(isSen){
 function backupText(){ const o = Object.assign({}, SRS); delete o.log; return JSON.stringify(o); }
 function saveSRS(){
   ensureProfile();
-  try{ localStorage.setItem(curKey(), JSON.stringify(SRS)); }catch(e){}
+  const key = curKey(), cj = JSON.stringify(normCfg(SRS.cfg));
+  if(key in CFG_SNAP && CFG_SNAP[key] !== cj) SRS.cfgAt = Date.now();
+  CFG_SNAP[key] = cj;
+  try{ localStorage.setItem(key, JSON.stringify(SRS)); }catch(e){}
+  if(typeof syncTouch === "function") syncTouch(PROFS.cur);     // 云同步（sync.js）：标记有改动，几秒后上传
 }
 
 /* ---------- 日期 / 词库 ---------- */
@@ -284,6 +296,7 @@ function applyResult(step, first, ms, tries){
   }
   first ? w.right++ : w.wrong++;
   w.last = t;
+  w.updated = Date.now();
   logAnswer(t, k, first, tries, ms, c, step.probe);
   let res;
   if(cf.failed){

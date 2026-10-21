@@ -36,6 +36,7 @@ function welcomePage(opts){
         <button class="small-btn" data-act="p-import">导入</button>
       </details>
     </div>
+    ${!opts.add && typeof cloudJoinBlock === "function" ? cloudJoinBlock() : ""}
     ${IMPORT_INPUT}`;
   setTimeout(() => { const e = document.getElementById("nm"); if(e && e.focus) try{ e.focus(); }catch(err){} }, 60);
 }
@@ -64,6 +65,8 @@ function chooserPage(){
 
 /* ---------- 启动 ---------- */
 function boot(){
+  const sl = typeof incomingSyncLink === "function" ? incomingSyncLink() : null;
+  if(sl && syncJoinPage(sl)) return;           // 打开的是“加入云同步”的链接：先问要不要加入
   const code = incomingCode();
   if(code && transferPage(code)) return;       // 打开的是“传送链接”：先问要不要导入
   if(!PROFS.list.length){ welcomePage(); return; }
@@ -120,7 +123,11 @@ function parseRecord(text){
 function importRecord(text, opts){
   const r = parseRecord(text), yes = !!(opts && opts.yes);
   if(r.err) return r;
+  // 导入是“覆盖”：打上时间戳，云同步时云端和其他设备上更早的记录不会把它再覆盖回去
   const data = normSRS(r.data), words = Object.keys(data.words).length;
+  const now = Date.now();
+  data.resetAt = now; data.cfgAt = now;
+  Object.keys(data.words).forEach(k => { data.words[k].updated = now; });
   if(r.wrapped){
     const name = r.name || "小朋友", ex = PROFS.list.find(p => sameName(p.name, name));
     if(ex){
@@ -169,8 +176,6 @@ function importFileChosen(el){
    为了短，词的记录用数组存，不带逐题明细；打开时仍走 normSRS 清洗，坏数据进不来。 */
 const LINK_DEFAULT = "https://alexlee-xz.github.io/abc_game/";
 const WFIELDS = ["box", "due", "seen", "right", "wrong", "last", "lastGood", "rc", "fg", "lw", "born"];
-const b64enc = s => btoa(unescape(encodeURIComponent(s))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-const b64dec = c => { c = c.replace(/-/g, "+").replace(/_/g, "/"); while(c.length % 4) c += "="; return decodeURIComponent(escape(atob(c))); };
 function packTransfer(id){
   const p = profById(id || PROFS.cur);
   if(!p) return "";
@@ -273,8 +278,8 @@ function accountSection(){
         <button class="small-btn ghost" data-act="prof-rename" data-id="${p.id}">改名</button></div></div>`;
   }).join("");
   const dels = PROFS.list.map(p => `<button class="small-btn ghost" data-act="prof-delete" data-id="${p.id}">删除“${escName(p.name)}”</button>`).join("");
-  return `<div class="sec"><h3>小朋友账户</h3>
-      <div class="note" style="margin-top:0">学习记录按名字分开，<b>自动保存在这个手机的这个浏览器里</b>。微信里打开的和手机自带浏览器里打开的，记录是<b>分开的</b>，不会自动同步；换入口、换手机或清理缓存前，点“传送链接”把记录搬过去。</div>
+  return (typeof cloudSection === "function" ? cloudSection() : "") + `<div class="sec"><h3>小朋友账户</h3>
+      <div class="note" style="margin-top:0">学习记录按名字分开，<b>自动保存在这个手机的这个浏览器里</b>。微信里打开的和手机自带浏览器里打开的，记录是<b>分开的</b>，不开启上面的“云同步”就不会自动同步；换入口、换手机或清理缓存前，点“传送链接”把记录搬过去。</div>
       ${wx ? `<div class="note warn">你现在是在微信里打开的：微信不支持下载文件，请用“传送链接”。</div>` : ""}
       ${stale ? `<div class="note warn">${stale}，建议现在${wx ? "生成传送链接存一份" : "下载一份存起来"}。</div>` : ""}
       ${rows}

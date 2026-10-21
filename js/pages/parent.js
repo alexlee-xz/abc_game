@@ -285,7 +285,7 @@ document.addEventListener("click", e => {
     case "p-reset":
       if(confirm("确定清空所有学习进度吗？此操作不能撤销。学习方式、每天新词数、语速等设置会保留。")){
         const keep = normCfg(SRS.cfg);
-        SRS = freshSRS(); SRS.cfg = keep; saveSRS(); parentPage();
+        SRS = freshSRS(); SRS.cfg = keep; SRS.cfgAt = SRS.resetAt = Date.now(); saveSRS(); parentPage();
       }
       break;
   }
