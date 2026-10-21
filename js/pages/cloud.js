@@ -85,10 +85,17 @@ function cloudUrlFrom(p){
   const el = document.getElementById("cu");
   return SYNC_URL || (p && p.url) || cleanUrl(el ? el.value : "") || SYNC.url;
 }
+// 开启 / 加入前先试一下能不能连上云服务；连不上就把原因和能做的事告诉家长（返回 true 表示通了）
+async function cloudReachable(url){
+  const r = await syncPing(url);
+  if(r.ok) return true;
+  alert(`连不上这个云服务地址：${r.why}。\n\n地址：${url}\n\n请先确认手机有网；再用这台设备的浏览器直接打开“${url}/api/ping”，如果也打不开，说明这个地址在当前网络下被屏蔽了（国内常见），换 Wi-Fi / 流量试试，或者给云服务绑一个自己的域名。`);
+  return false;
+}
 async function cloudCreate(){
   const url = cloudUrlFrom();
   if(!url){ alert("请先填写云服务地址（以 https:// 开头）"); return null; }
-  if(!(await syncPing(url))){ alert("连不上这个云服务地址：请检查地址有没有填对、网络是否正常"); return null; }
+  if(!(await cloudReachable(url))) return null;
   syncEnable(url, newSyncCode());
   return cloudFinish(false);
 }
@@ -98,7 +105,7 @@ async function cloudJoin(){
   if(!p){ alert("没有识别出同步码：应该是 20 位字母和数字（可以带横线），或者一整条加入链接"); return null; }
   const url = cloudUrlFrom(p);
   if(!url){ alert("请先填写云服务地址（以 https:// 开头）"); return null; }
-  if(!(await syncPing(url))){ alert("连不上这个云服务地址：请检查地址有没有填对、网络是否正常"); return null; }
+  if(!(await cloudReachable(url))) return null;
   syncEnable(url, p.code);
   return cloudFinish(true);
 }

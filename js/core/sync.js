@@ -269,13 +269,21 @@ async function syncRun(){
   return out;
 }
 
-// 检查一个云服务地址能不能连上（开启同步前先试一下，地址填错了马上能知道）
+// 检查一个云服务地址能不能连上（开启同步前先试一下，地址填错了马上能知道）。返回 {ok, why}：why 是给家长看的原因
 async function syncPing(url){
+  const ac = typeof AbortController !== "undefined" ? new AbortController() : null;
+  const tm = ac ? setTimeout(() => ac.abort(), 10000) : 0;
   try{
-    const r = await fetch(url + "/api/ping", {cache: "no-store"});
-    const j = await r.json();
-    return !!(j && j.ok);
-  }catch(e){ return false; }
+    const r = await fetch(url + "/api/ping", {cache: "no-store", signal: ac ? ac.signal : undefined});
+    let j = null;
+    try{ j = await r.json(); }catch(e){}
+    if(j && j.ok) return {ok: true, why: ""};
+    return {ok: false, why: r.ok ? "这个地址不是云同步服务（返回的内容不对）" : "服务返回了错误（" + r.status + "）"};
+  }catch(e){
+    return {ok: false, why: (e && e.name === "AbortError") ? "等了 10 秒没有响应（超时）" : "浏览器没能连接到这个地址"};
+  }finally{
+    if(tm) clearTimeout(tm);
+  }
 }
 
 // 立即同步一次（同一时间只跑一个；跑的时候又有新改动，跑完再来一次）。返回结果对象，出错时有 err
