@@ -17,7 +17,7 @@ function welcomePage(opts){
   accBack = opts.from === "parent" ? "parent" : "prof-chooser";
   const legacy = !PROFS.list.length && !!legacyRaw();
   app.innerHTML = `
-    ${opts.add ? `<div class="top"><button class="back" data-act="${accBack}">← 返回</button><span></span></div>` : ""}
+    ${opts.add ? `<div class="top"><button class="back" data-act="${accBack}"${accBack === "parent" ? ` data-t="acct"` : ""}>← 返回</button><span></span></div>` : ""}
     <h1>${opts.add ? "🧒 新增小朋友" : "🔤 ABC 英语小游戏"}</h1>
     <div class="sub">${opts.add ? "每个小朋友有自己的学习记录" : "先认识一下吧"}</div>
     <div class="sec" style="text-align:center">
@@ -158,7 +158,7 @@ function importFileChosen(el){
   if(f.size > 3 * 1024 * 1024){ alert("这个文件太大了，不像是本游戏的记录"); try{ el.value = ""; }catch(e){} return; }
   const fr = new FileReader();
   fr.onload = () => { try{ el.value = ""; }catch(e){} importAndShow(String(fr.result || "")); };
-  fr.onerror = () => alert("读取文件失败，请换一个文件，或用“复制文字”的办法");
+  fr.onerror = () => alert("读取文件失败，请换一个文件，或改用“传送链接”");
   fr.readAsText(f);
 }
 
@@ -252,10 +252,17 @@ function exportedLabel(p){
   const n = Math.floor((Date.now() - p.exported) / 86400000);
   return n <= 0 ? "今天导出过记录" : `上次导出记录：${n} 天前`;
 }
+// 该提醒备份时返回一句话（不带句号），否则返回空串
+function backupNote(){
+  const cur = curProfile();
+  const stale = cur && (Object.keys(SRS.words).length > 0) && (!cur.exported || Date.now() - cur.exported > 14 * 86400000);
+  if(!stale) return "";
+  return cur.exported ? `已经超过 14 天没有导出“${escName(cur.name)}”的记录了` : `还没有导出过“${escName(cur.name)}”的记录`;
+}
 function accountSection(){
   const cur = curProfile();
   const wx = inWeChat();
-  const stale = cur && (Object.keys(SRS.words).length > 0) && (!cur.exported || Date.now() - cur.exported > 14 * 86400000);
+  const stale = backupNote();
   const rows = PROFS.list.map(p => {
     const me = p.id === PROFS.cur;
     return `<div class="prof"><div><b>🧒 ${escName(p.name)}</b>${me ? ` <span class="tag">正在使用</span>` : ""}</div>
@@ -263,35 +270,38 @@ function accountSection(){
       <div>${me ? "" : `<button class="small-btn" data-act="prof-switch" data-id="${p.id}">切换</button>`}
         <button class="small-btn" data-act="prof-link" data-id="${p.id}">🔗 传送链接</button>
         ${wx ? "" : `<button class="small-btn" data-act="prof-download" data-id="${p.id}">下载记录</button>`}
-        <button class="small-btn ghost" data-act="prof-rename" data-id="${p.id}">改名</button>
-        <button class="small-btn ghost" data-act="prof-delete" data-id="${p.id}">删除</button></div></div>`;
+        <button class="small-btn ghost" data-act="prof-rename" data-id="${p.id}">改名</button></div></div>`;
   }).join("");
+  const dels = PROFS.list.map(p => `<button class="small-btn ghost" data-act="prof-delete" data-id="${p.id}">删除“${escName(p.name)}”</button>`).join("");
   return `<div class="sec"><h3>小朋友账户</h3>
-      <div class="note">学习记录按名字分开，<b>自动保存在这个手机的这个浏览器里</b>。注意：微信里打开的和手机自带浏览器里打开的，记录是<b>分开的</b>，不会自动同步。建议平时只用一个入口；要换入口、换手机或清理缓存前，点“传送链接”把记录搬过去。</div>
+      <div class="note" style="margin-top:0">学习记录按名字分开，<b>自动保存在这个手机的这个浏览器里</b>。微信里打开的和手机自带浏览器里打开的，记录是<b>分开的</b>，不会自动同步；换入口、换手机或清理缓存前，点“传送链接”把记录搬过去。</div>
       ${wx ? `<div class="note warn">你现在是在微信里打开的：微信不支持下载文件，请用“传送链接”。</div>` : ""}
-      ${stale ? `<div class="note warn">${cur.exported ? `已经超过 14 天没有导出“${escName(cur.name)}”的记录了` : `还没有导出过“${escName(cur.name)}”的记录`}，建议现在下载一份存起来。</div>` : ""}
+      ${stale ? `<div class="note warn">${stale}，建议现在${wx ? "生成传送链接存一份" : "下载一份存起来"}。</div>` : ""}
       ${rows}
-      <div class="note" style="margin-top:12px"><b>传送链接</b>：点上面某个小朋友的“传送链接”，链接会出现在下面并自动复制。把它发到另一边（比如微信的“文件传输助手”），在那边打开，或粘贴到手机浏览器的网址栏，确认后就导入了。</div>
+      <div class="note" style="margin-top:12px"><b>传送链接</b>：点某个小朋友的“传送链接”，链接会出现在下面并自动复制。发到另一边（比如微信的“文件传输助手”），在那边打开或粘贴到手机浏览器的网址栏，确认后就导入了。</div>
       <textarea id="lk" readonly placeholder="点“传送链接”后，链接显示在这里"></textarea>
-      <div>
-        ${PROFS.list.length < PROF_MAX ? `<button class="small-btn" data-act="prof-add" data-from="parent">➕ 新增小朋友</button>` : ""}
-        <button class="small-btn" data-act="p-pick">📂 导入记录文件</button>
-      </div>
-      <details${wx ? " open" : ""} style="margin-top:12px">
-        <summary class="note" style="cursor:pointer">微信里下载不了文件？用文字也可以</summary>
-        <div class="note">“复制文字”后发给自己（文件传输助手、备忘录都行）；在新设备粘贴到下面的框里，点“导入文字”（传送链接也可以直接粘贴到这里）。文字里不含逐题明细，其余进度都在。</div>
-        <textarea id="bk"></textarea>
-        <button class="small-btn" data-act="p-copy">复制文字</button>
-        <button class="small-btn" data-act="p-import">导入文字</button>
+      ${PROFS.list.length < PROF_MAX ? `<button class="small-btn" data-act="prof-add" data-from="parent">➕ 新增小朋友</button>` : ""}
+    </div>
+    <div class="sec"><h3>导入记录</h3>
+      <button class="small-btn" data-act="p-pick" style="margin-top:0">📂 导入记录文件</button>
+      <details data-keep="paste"${keepOpen("paste", wx)} style="margin-top:10px">
+        <summary class="note" style="cursor:pointer">${wx ? "微信里下载不了文件？" : ""}粘贴“传送链接”导入</summary>
+        <div class="note">把另一边生成的传送链接粘贴到下面，点“导入”（旧版“备份文字”也能导入）。</div>
+        <textarea id="bk" placeholder="把复制来的链接粘贴到这里"></textarea>
+        <button class="small-btn" data-act="p-import">导入</button>
       </details>
-      <div style="margin-top:12px"><button class="small-btn ghost" data-act="p-reset">清空${cur ? "“" + escName(cur.name) + "”的" : ""}进度</button></div>
       ${IMPORT_INPUT}
-    </div>`;
+    </div>
+    <div class="sec"><details data-keep="danger"${keepOpen("danger")}>
+      <summary>⚠️ 危险操作（清空进度、删除小朋友）</summary>
+      <div class="note warn">这些操作不能撤销，建议先生成传送链接或下载记录。</div>
+      <div><button class="small-btn ghost" data-act="p-reset">清空${cur ? "“" + escName(cur.name) + "”的" : ""}进度</button></div>
+      <div>${dels}</div>
+    </details></div>`;
 }
 function afterParentRender(){
   accWhere = "parent";
-  const bk = document.getElementById("bk"), wk = document.getElementById("wk"), lk = document.getElementById("lk");
-  if(bk) bk.value = recordText(PROFS.cur, false);
+  const wk = document.getElementById("wk"), lk = document.getElementById("lk");
   if(lk) lk.value = "";
   if(wk) wk.value = weeklyText();
 }
@@ -359,8 +369,8 @@ document.addEventListener("click", e => {
     case "prof-switch":   if(switchProfile(id)) rerenderParent(); break;
     case "prof-download": {
       const ok = downloadRecord(id);
-      alert(ok ? "已开始下载记录文件。如果没有反应（微信里常见），请展开下面的“微信里下载不了文件？”，复制文字发给自己，或用手机自带的浏览器打开本页再下载。"
-               : "生成文件失败，请改用下面的“复制文字”。");
+      alert(ok ? "已开始下载记录文件。如果没有反应（微信里常见），请改用“传送链接”，或用手机自带的浏览器打开本页再下载。"
+               : "生成文件失败，请改用“传送链接”。");
       rerenderParent();
       break;
     }
@@ -397,7 +407,6 @@ document.addEventListener("click", e => {
     }
     case "p-hash-cancel": pendingLink = ""; boot(); break;
     case "p-pick":        { const f = document.getElementById("imp"); if(f && f.click) f.click(); break; }
-    case "p-copy":        copyFrom("bk", "已复制，可以发给自己保存"); break;
     case "p-copy-wk":     copyFrom("wk", "已复制，打开微信粘贴发送就行"); break;
     case "p-import": {
       const ta = document.getElementById("bk");

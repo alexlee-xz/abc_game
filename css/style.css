@@ -126,3 +126,14 @@
   .note-c{font-size:13px; color:#8d6e63; line-height:1.7; margin:8px 4px}
   .prof{padding:8px 0; border-bottom:1px dashed #eee}
   .sec .note.warn{color:#d84315; background:#fff3e0; border-radius:8px; padding:6px 8px; margin:8px 0}
+  .ptabs{display:flex; gap:6px; margin:8px 0 4px}
+  .ptabs button{flex:1; font-size:15px; padding:10px 2px; border-radius:14px; background:#fff; color:#e65100; box-shadow:0 3px 0 #ffcc80}
+  .ptabs button.on{background:#ff7043; color:#fff; box-shadow:0 3px 0 #d84315}
+  .sec details > summary{cursor:pointer; font-size:15px; font-weight:600; color:#e65100; padding:4px 0; line-height:1.5}
+  .sec details[open] > summary{margin-bottom:6px}
+  .sec h4{margin:16px 0 2px; font-size:15px; color:#e65100; border-top:1px dashed #eee; padding-top:10px}
+  .sec .sec{box-shadow:none; border-radius:0; padding:10px 0 0; margin:10px 0 0; border-top:1px dashed #eee}
+  .sec.todo{background:#fff8e1; box-shadow:0 3px 0 #ffd54f}
+  .sec.todo.ok{background:#e8f5e9; box-shadow:0 3px 0 #a5d6a7}
+  .todo-i{font-size:14px; line-height:1.6; padding:3px 0}
+  .gate-q{font-size:36px; font-weight:700; color:#e65100; margin:6px 0 14px}

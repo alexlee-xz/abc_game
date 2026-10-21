@@ -40,15 +40,34 @@ f.addEventListener("load", async () => {
   // parent page: new sections + level buttons
   click('[data-act="home"]'); await sleep(100);
   click('[data-act="parent"]'); await sleep(200);
-  const ph = d.getElementById("app").innerText;
-  log.push("parent page: forgetting=" + ph.includes("遗忘情况") + " learning=" + ph.includes("还没学会的词") + " sliders=" + d.querySelectorAll("input.rng").length);
+  log.push("gate: shown=" + !!d.getElementById("gate") + " parentPageHidden=" + !d.querySelector(".ptabs") + " question=" + d.querySelector(".gate-q").textContent);
+  d.getElementById("gate").value = String(w.eval("parentGateQ.a + parentGateQ.b + 1")); click('[data-act="p-gate"]'); await sleep(100);
+  log.push("gate wrong answer: still locked=" + (!!d.getElementById("gate") && !d.querySelector(".ptabs")) + " msg='" + d.getElementById("gate-err").textContent + "'");
+  d.getElementById("gate").value = String(w.eval("parentGateQ.a + parentGateQ.b"));
+  d.getElementById("gate").dispatchEvent(new w.KeyboardEvent("keydown", {key: "Enter", bubbles: true})); await sleep(200);
+  const ph = d.getElementById("app").textContent;
+  log.push("parent page: tabs=" + d.querySelectorAll(".ptabs button").length + " todo=" + ph.includes("需要你做的事") + " forgetting=" + ph.includes("遗忘情况") + " learning=" + ph.includes("还没学会的词") + " sliders on overview=" + d.querySelectorAll("input.rng").length + " (expect 0)");
+  const det = d.querySelector('details[data-keep="deep"]');
+  log.push("analysis folded: " + (det && !det.open) + " | curve hidden while folded: " + (d.querySelector('svg[aria-label="遗忘曲线"]') === null || d.querySelector('svg[aria-label="遗忘曲线"]').getBoundingClientRect().width === 0));
+  click('[data-act="p-tab"][data-t="set"]'); await sleep(100);
+  log.push("settings tab: presets=" + d.querySelectorAll('[data-act="p-preset"]').length + " sliders=" + d.querySelectorAll("input.rng").length + " (expect 7) advancedFolded=" + !d.querySelector('details[data-keep="adv"]').open);
+  click('[data-act="p-preset"][data-v="easy"]'); await sleep(100);
+  log.push("preset easy: newPerDay=" + w.eval("SRS.cfg.newPerDay") + " zh=" + w.eval("SRS.cfg.zh") + " say=" + w.eval("SRS.cfg.say") + " label=" + d.getElementById("presets").innerText.slice(0, 8).replace(/\n/g, " "));
+  click('[data-act="p-preset"][data-v="std"]'); await sleep(100);
+  const advEl = d.querySelector('details[data-keep="adv"]'); advEl.open = true; await sleep(100);       // the 'toggle' event remembers it
+  click('[data-act="p-set"][data-k="act"][data-v="0"]'); await sleep(100);
+  log.push("advanced stays open after a re-render: " + d.querySelector('details[data-keep="adv"]').open + " | custom label: " + d.getElementById("presets").innerText.includes("自定义"));
+  click('[data-act="p-set"][data-k="act"][data-v="1"]'); await sleep(100);
+  click('[data-act="p-tab"][data-t="view"]'); await sleep(100);
   // forgetting curve: seed some data, re-open the parent page and check the SVG is well-formed XML with the expected marks
-  w.eval("SRS.curve = [[6,6],[5,4],[4,3],[3,2],[2,1],[1,0],[0,0]]; saveSRS(); parentPage();"); await sleep(100);
+  w.eval("SRS.curve = [[6,6],[5,4],[4,3],[3,2],[2,1],[1,0],[0,0]]; saveSRS(); parentPage('view');"); await sleep(100);
+  d.querySelector('details[data-keep="deep"]').open = true; await sleep(100);
   const svgEl = d.querySelector('svg[aria-label="遗忘曲线"]');
   const parsed = svgEl ? new DOMParser().parseFromString(new XMLSerializer().serializeToString(svgEl), "image/svg+xml") : null;
   log.push("curve svg: found=" + !!svgEl + " wellFormed=" + (parsed && !parsed.querySelector("parsererror")) + " circles=" + (svgEl ? svgEl.querySelectorAll("circle").length : 0)
     + " size=" + (svgEl ? Math.round(svgEl.getBoundingClientRect().width) + "x" + Math.round(svgEl.getBoundingClientRect().height) : "-"));
-  w.eval("SRS.curve = freshCurve(); saveSRS(); parentPage();"); await sleep(100);
+  w.eval("SRS.curve = freshCurve(); saveSRS(); parentPage('set');"); await sleep(100);
+  d.querySelector('details[data-keep="adv"]').open = true; await sleep(100);
   // drag the three sliders with real input events
   const setRange = (key, v) => { const el = d.querySelector('input[data-set="' + key + '"]'); el.value = v; el.dispatchEvent(new w.Event("input", {bubbles: true})); return el; };
   setRange("newPerDay", 4); setRange("promptRate", 7);
@@ -62,7 +81,8 @@ f.addEventListener("load", async () => {
   setRange("newPerDay", 3); setRange("promptRate", 10); setRange("enRate", 10);
   log.push("restored: " + w.eval("newPerDay()"));
   // learn mode -> detail panel for "teacher": IPA shown, read-aloud scored with a mocked recogniser
-  click('[data-act="home"]'); await sleep(100);
+  click('[data-act="p-back"]'); await sleep(100);
+  log.push("back button locks the parent page: " + (w.eval("parentUntil") === 0));
   click('[data-act="lesson"][data-i="1"]'); await sleep(100);
   click('[data-act="learn"]'); await sleep(100);
   log.push("learn grid ipa count: " + d.querySelectorAll(".card .ipa").length);
@@ -124,7 +144,7 @@ f.addEventListener("load", async () => {
   log.push("after act: " + (d.querySelector(".card.teach .en") ? d.querySelector(".card.teach .en").textContent : d.getElementById("app").innerText.slice(0, 20).replace(/\n/g, " ")));
   w.eval("SAY_CHANCE = 0");
   // parent page toggles: click and keep scroll position
-  w.eval("parentPage()"); await sleep(100);
+  w.eval("parentPage('set')"); await sleep(100);
   d.querySelector('[data-act="p-set"][data-k="zh"][data-v="all"]').click(); await sleep(100);
   log.push("zh toggle: cfg=" + w.eval("SRS.cfg.zh") + " | on button: " + d.querySelector('[data-act="p-set"][data-k="zh"].on').dataset.v);
   w.eval("SRS = freshSRS(); saveSRS();");
@@ -150,11 +170,13 @@ f.addEventListener("load", async () => {
   click('[data-act="prof-add"]'); await sleep(50);
   d.getElementById("nm").value = "Tom"; click('[data-act="prof-create"]'); await sleep(100);
   log.push("second child: " + w.eval("curProfile().name") + " newPerDay=" + w.eval("newPerDay()") + " (expect 3, not Lily's 5) keys=" + w.eval("Object.keys(localStorage).filter(k => k.indexOf('abc_srs_v1__') === 0).length"));
-  w.eval("parentPage()"); await sleep(100);
+  w.eval("parentPage('view')"); await sleep(100);
   const ptxt = d.getElementById("app").innerText;
-  log.push("parent page: accounts=" + ptxt.includes("小朋友账户") + " weekly=" + ptxt.includes("每周小结") + " oldBackup=" + ptxt.includes("备份 / 恢复进度") + " wk=" + d.getElementById("wk").value.split("\n")[0]);
+  log.push("parent page: accounts=" + ptxt.includes("小朋友账户") + " (expect false on the overview) weekly=" + ptxt.includes("每周小结") + " oldBackup=" + ptxt.includes("备份 / 恢复进度") + " wk=" + d.getElementById("wk").value.split("\n")[0]);
   log.push("wk textarea selectable: " + w.getComputedStyle(d.getElementById("wk")).userSelect + " rows=" + d.getElementById("wk").value.split("\n").length);
   click('[data-act="p-copy-wk"]'); await sleep(200);
+  click('[data-act="p-tab"][data-t="acct"]'); await sleep(100);
+  log.push("account tab: accounts=" + d.getElementById("app").innerText.includes("小朋友账户") + " paste box=" + !!d.getElementById("bk") + " copyText button=" + !!d.querySelector('[data-act="p-copy"]') + " (expect false) dangerFolded=" + !d.querySelector('details[data-keep="danger"]').open + " deleteButtons=" + d.querySelectorAll('[data-act="prof-delete"]').length);
   // download: intercept the anchor click, read the Blob back
   let dl = null; const realCreate = w.URL.createObjectURL; w.URL.createObjectURL = b => { dl = b; return realCreate.call(w.URL, b); };
   const origClick = w.HTMLAnchorElement.prototype.click; w.HTMLAnchorElement.prototype.click = function(){ log.push("download requested: " + this.download); };

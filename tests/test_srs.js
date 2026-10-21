@@ -64,6 +64,8 @@ const J = x => JSON.parse(JSON.stringify(x));
 
 // random behaviour is switched off by default so the older tests stay deterministic; the new tests turn it on explicitly
 ev(`SAY_CHANCE = 0; ALT_VOICE_P = 0;`);
+// the parent-page arithmetic gate is switched off here; the gate has its own tests further down
+ev(`PARENT_GATE = false;`);
 
 // every audio file referenced must exist
 const missing = [];
@@ -470,7 +472,7 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
     ev(`STORIES`).forEach(s => s.lines.forEach(id => assert(ev(`itemById(${JSON.stringify(id)})`), "story line " + id)));
 
     // --- learning-mode toggles on the parent page ---
-    reset(); ev(`parentPage()`);
+    reset(); ev(`parentPage("set")`);
     let tp = ev(`app.innerHTML`);
     assert(/\u5b66\u4e60\u65b9\u5f0f/.test(tp) && /data-k="zh" data-v="all"/.test(tp) && /data-k="say" data-v="0"/.test(tp) && /data-k="act" data-v="0"/.test(tp));
     assert(/small-btn on" data-act="p-set" data-k="zh" data-v="new"/.test(tp), "defaults: Chinese only on new words");
@@ -499,7 +501,7 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
   [[1, 0], [2, 1], [3, 2], [4, 2], [5, 3], [7, 3], [8, 4], [14, 4], [15, 5], [29, 5], [30, 6], [400, 6], [0, -1]].forEach(([g, b]) =>
     assert.strictEqual(ev(`gapBucket(${g})`), b, "gap " + g));
   reset();
-  assert(/还没有数据/.test((ev(`parentPage()`), ev(`app.innerHTML`))), "empty curve message");
+  assert(/还没有数据/.test((ev(`parentPage("view")`), ev(`app.innerHTML`))), "empty curve message");
   assert(!/<svg/.test(ev(`app.innerHTML`)), "no chart without data");
   capNew();
   seed("hose", {box: 2, due: today(), right: 2, last: today() - 3, lastGood: today() - 3});
@@ -512,7 +514,7 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
   ev(`SRS.words["hose"].due = todayNum()`);
   await runQuest({wrongFor: new Set(["hose"])});
   assert.strictEqual(JSON.stringify(ev(`SRS.curve[0]`)), JSON.stringify([2, 1]), "forgotten word counts as a miss at gap 1");
-  ev(`parentPage()`);
+  ev(`parentPage("view")`);
   const chart = ev(`app.innerHTML`);
   assert(/<svg[^>]*aria-label="遗忘曲线"/.test(chart) && /<polyline/.test(chart) && /<circle/.test(chart) && /n=2/.test(chart), "curve chart rendered");
   assert(/#fff/.test(chart), "few-sample points are hollow");
@@ -572,7 +574,7 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
   assert.strictEqual(ev(`rateFor(fx("fx_good_en"))`), 0.8);
   assert.strictEqual(ev(`rateFor({url: "blob:xyz"})`), 1);
   // parent page shows the settings and the preview buttons play something
-  await click("parent");
+  await click("parent", 0, {t: "set"});
   const ph = ev(`app.innerHTML`);
   assert(/data-set="newPerDay"/.test(ph) && /data-set="enRate"/.test(ph) && /data-set="promptRate"/.test(ph));
   assert(/value="7" data-set="newPerDay"/.test(ph) && /value="8" data-set="promptRate"/.test(ph));
@@ -607,7 +609,7 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
   assert.deepStrictEqual(J(ev(`recRange(true)`)), {min: 6000, max: 12000});
   assert.deepStrictEqual(J(JSON.parse(curStore()).cfg.recSen), [6, 12], "saved");
   assert.strictEqual(ev(`document.getElementById("v-recSenMin").textContent`), 6, "labels update");
-  await click("parent");
+  await click("parent", 0, {t: "set"});
   const rh = ev(`app.innerHTML`);
   assert(/跟读录音时长/.test(rh) && /value="6" data-set="recSenMin"/.test(rh) && /value="12" data-set="recSenMax"/.test(rh) && /value="1" data-set="recWordMin"/.test(rh) && /value="10" data-set="recWordMax"/.test(rh), "parent page shows the four sliders");
   assert(/min="2" max="20" step="1" value="6" data-set="recSenMin"/.test(rh) && /min="1" max="10" step="1" value="1" data-set="recWordMin"/.test(rh), "slider ranges");
@@ -616,6 +618,104 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
   ev(`SRS = normSRS({words: {}, cfg: {recWord: [50, 2], recSen: "x"}})`);
   assert.deepStrictEqual(J(ev(`SRS.cfg.recWord`)), [10, 10]); assert.deepStrictEqual(J(ev(`SRS.cfg.recSen`)), [4, 10], "bad values in an imported file are cleaned");
   reset();
+
+  /* ---------- parent page: tabs, to-do box, presets, arithmetic gate ---------- */
+  {
+    reset();
+    ev(`parentPage("view")`); let h = ev(`app.innerHTML`);
+    assert.strictEqual((h.match(/data-act="p-tab"/g) || []).length, 3, "three tabs");
+    assert(/class="on" data-act="p-tab" data-t="view"/.test(h), "overview tab is highlighted");
+    assert(/需要你做的事/.test(h) && /今天的魔法任务还没做/.test(h), "to-do box: today's quest not done");
+    assert(!/data-set=/.test(h) && !/data-act="p-set"/.test(h) && !/id="presets"/.test(h), "no settings on the overview");
+    assert(!/prof-delete/.test(h) && !/id="bk"/.test(h), "no account stuff on the overview");
+    // the heavy analysis is folded away (collapsed unless opened), review rules live inside it
+    assert(/data-keep="deep"(?! open)/.test(h), "analysis is collapsed");
+    const di = h.indexOf("详细分析");
+    ["未来 7 天要复习", "遗忘情况", "遗忘曲线", "最容易忘的词", "还没学会的词", "复习规则"].forEach(s => assert(h.indexOf(s) > di, s + " is inside 详细分析"));
+    ["每周小结", "今天", "学习进度", "最近 30 天打卡"].forEach(s => assert(h.indexOf(s) >= 0 && h.indexOf(s) < di, s + " stays on top"));
+    // everything fine -> friendly message
+    ev(`SRS.daily.done = true`); ev(`parentPage("view")`);
+    assert(/暂时没有，继续保持/.test(ev(`app.innerHTML`)) && /class="sec todo ok"/.test(ev(`app.innerHTML`)), "nothing to do");
+    // a word that keeps being answered wrong
+    seed("hose", {box: 0, due: today(), wrong: 3, seen: 3}); ev(`parentPage("view")`);
+    assert(/总是答错/.test(ev(`app.innerHTML`)) && /hose/.test(ev(`app.innerHTML`)), "hint for a word that keeps failing");
+    reset();
+    // tab buttons
+    await click("p-tab", 0, {t: "set"}); h = ev(`app.innerHTML`);
+    assert(/class="on" data-act="p-tab" data-t="set"/.test(h) && /data-k="zh"/.test(h) && /id="presets"/.test(h) && /data-set="recWordMin"/.test(h), "settings tab");
+    assert(!/需要你做的事/.test(h) && !/id="bk"/.test(h));
+    assert(/data-keep="adv"(?! open)/.test(h) && h.indexOf("高级设置") > h.indexOf("学习节奏"), "advanced settings are folded under the presets");
+    await click("p-tab", 0, {t: "acct"}); h = ev(`app.innerHTML`);
+    assert(/小朋友账户/.test(h) && /id="bk"/.test(h) && !/data-set=/.test(h), "account tab");
+    await click("p-tab", 0, {t: "bogus"}); assert(/小朋友账户/.test(ev(`app.innerHTML`)), "unknown tab keeps the current one");
+    // settings and re-renders keep the tab
+    await click("p-tab", 0, {t: "set"}); await click("p-set", 0, {k: "zh", v: "all"});
+    assert(/data-t="set"/.test(ev(`app.innerHTML`)) && /id="presets"/.test(ev(`app.innerHTML`)), "p-set stays on the settings tab");
+    // entering from home always starts on the overview; the back button leaves
+    await click("parent"); assert(/data-act="p-tab" data-t="view"/.test(ev(`app.innerHTML`)) && /需要你做的事/.test(ev(`app.innerHTML`)), "opens on the overview");
+    await click("p-back"); assert(/ABC/.test(ev(`app.innerHTML`)), "back goes home");
+
+    // presets
+    reset(); ev(`parentPage("set")`); h = ev(`app.innerHTML`);
+    assert(/当前：<b>标准<\/b>/.test(h) && /small-btn on" data-act="p-preset" data-v="std"/.test(h), "defaults = standard");
+    slider("promptRate", 13);
+    await click("p-preset", 0, {v: "easy"});
+    assert.deepStrictEqual([ev(`SRS.cfg.newPerDay`), ev(`SRS.cfg.zh`), ev(`SRS.cfg.say`), ev(`SRS.cfg.act`)], [2, "all", false, true], "easy preset");
+    assert.strictEqual(ev(`SRS.cfg.promptRate`), 1.3, "presets leave the speed alone");
+    assert(/当前：<b>轻松<\/b>/.test(ev(`app.innerHTML`)) && /small-btn on" data-act="p-preset" data-v="easy"/.test(ev(`app.innerHTML`)), "page shows the new preset");
+    assert(/value="2" data-set="newPerDay"/.test(ev(`app.innerHTML`)) && /small-btn on" data-act="p-set" data-k="zh" data-v="all"/.test(ev(`app.innerHTML`)), "advanced controls follow the preset");
+    await click("p-preset", 0, {v: "hard"});
+    assert.deepStrictEqual([ev(`SRS.cfg.newPerDay`), ev(`SRS.cfg.zh`), ev(`SRS.cfg.say`), ev(`SRS.cfg.act`)], [6, "new", true, true], "challenge preset");
+    await click("p-preset", 0, {v: "bogus"}); assert.strictEqual(ev(`SRS.cfg.newPerDay`), 6, "unknown preset ignored");
+    await click("p-preset", 0, {v: "std"});
+    assert.deepStrictEqual([ev(`SRS.cfg.newPerDay`), ev(`SRS.cfg.zh`), ev(`SRS.cfg.say`), ev(`SRS.cfg.act`)], [3, "new", true, true], "standard preset");
+    assert.strictEqual(JSON.parse(curStore()).cfg.newPerDay, 3, "saved");
+    // moving a slider off a preset switches the label to custom, live
+    slider("newPerDay", 4);
+    assert(/当前：<b>自定义<\/b>/.test(ev(`document.getElementById("presets").innerHTML`)) && !/small-btn on" data-act="p-preset"/.test(ev(`document.getElementById("presets").innerHTML`)), "custom");
+    slider("newPerDay", 6); await click("p-set", 0, {k: "say", v: "0"});
+    assert(/当前：<b>自定义<\/b>/.test(ev(`app.innerHTML`)), "toggling an option also leaves the preset");
+    reset();
+
+    // folded sections remember being opened across re-renders
+    ev(`parentOpen.adv = true`); ev(`parentPage("set")`); assert(/data-keep="adv" open/.test(ev(`app.innerHTML`)), "open state is kept");
+    ev(`parentOpen.adv = false`); ev(`parentPage("set")`); assert(!/data-keep="adv" open/.test(ev(`app.innerHTML`)));
+    ev(`delete parentOpen.adv`);
+
+    // arithmetic gate
+    ev(`PARENT_GATE = true; parentUntil = 0;`);
+    for(let n = 0; n < 60; n++){ ev(`gatePage()`); const q = J(ev(`parentGateQ`)); assert(q.a >= 12 && q.a <= 19 && q.b >= 3 && q.b <= 9, "gate question range"); }
+    const setAns = v => ev(`document.getElementById("gate").value = ${JSON.stringify(String(v))}`);
+    await click("parent"); h = ev(`app.innerHTML`);
+    assert(/家长验证/.test(h) && /id="gate"/.test(h) && /data-act="p-gate"/.test(h) && !/data-act="p-tab"/.test(h), "gate page, not the parent page");
+    let q = J(ev(`parentGateQ`));
+    assert(new RegExp(`${q.a} \\+ ${q.b} = \\?`).test(h), "question is shown");
+    setAns(q.a + q.b + 1); await click("p-gate");
+    assert(/不对哦/.test(ev(`app.innerHTML`)) && /id="gate"/.test(ev(`app.innerHTML`)) && !/data-act="p-tab"/.test(ev(`app.innerHTML`)), "wrong answer: still locked");
+    setAns(""); await click("p-gate"); assert(/id="gate"/.test(ev(`app.innerHTML`)), "empty answer");
+    setAns("abc"); await click("p-gate"); assert(/id="gate"/.test(ev(`app.innerHTML`)), "garbage answer");
+    q = J(ev(`parentGateQ`)); setAns(` ${q.a + q.b} `); await click("p-gate");
+    assert(/data-act="p-tab"/.test(ev(`app.innerHTML`)) && /家长页/.test(ev(`app.innerHTML`)), "right answer opens the parent page");
+    // unlocked for a while: opening again does not ask; leaving with the back button locks again
+    await click("p-tab", 0, {t: "set"}); await click("p-set", 0, {k: "say", v: "1"});
+    assert(/data-act="p-tab"/.test(ev(`app.innerHTML`)), "in-page actions never ask again");
+    await click("p-back");
+    await click("parent"); assert(/id="gate"/.test(ev(`app.innerHTML`)), "back button locks");
+    // Enter key submits; the requested tab is honoured after the gate
+    q = J(ev(`parentGateQ`)); setAns(q.a + q.b);
+    keyHandlers.forEach(k => k({key: "Enter", target: {id: "gate"}}));
+    assert(/data-act="p-tab"/.test(ev(`app.innerHTML`)), "Enter submits");
+    keyHandlers.forEach(k => k({key: "a", target: {id: "nm"}}));
+    // idle for more than 5 minutes: ask again; activity keeps it open
+    ev(`home()`); ev(`__advanceMs(4 * 60000)`); await click("parent"); assert(/data-act="p-tab"/.test(ev(`app.innerHTML`)), "still unlocked after 4 minutes");
+    ev(`home()`); ev(`__advanceMs(6 * 60000)`); await click("parent", 0, {t: "set"}); assert(/id="gate"/.test(ev(`app.innerHTML`)), "asks again after 6 idle minutes");
+    q = J(ev(`parentGateQ`)); setAns(q.a + q.b); await click("p-gate");
+    assert(/data-act="p-tab"/.test(ev(`app.innerHTML`)), "unlocked again");
+    // the gate page has a way out
+    ev(`parentUntil = 0`); await click("parent"); assert(/data-act="home"/.test(ev(`app.innerHTML`)), "gate page has a back button");
+    ev(`PARENT_GATE = false; parentUntil = 0;`);
+    reset();
+  }
 
   /* ---------- 45 days of all-correct use: schedule, caps, streak (NEW=n to try other volumes) ---------- */
   if(process.env.NEW) ev(`SRS.cfg.newPerDay = ${+process.env.NEW}`);
@@ -632,7 +732,7 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
     perDay.push(ev(`Q.steps.filter(s => s.type === "quiz").length`));
     if(due) reviewDays.push(day);
     assert(ev(`SRS.daily`).newCount <= ev(`newPerDay()`), "too many new words");
-    ev(`homeQuestHtml()`); ev(`garden()`); ev(`parentPage()`);
+    ev(`homeQuestHtml()`); ev(`garden()`); ev(`parentPage("view")`); ev(`parentPage("set")`); ev(`parentPage("acct")`);
   }
   assert.strictEqual(JSON.stringify(reviewDays.slice(0, 6)), JSON.stringify([1, 2, 4, 7, 15, 30]), "schedule: " + reviewDays);
   assert.strictEqual(ev(`SRS.words["${first}"].box`), 5);
@@ -659,9 +759,12 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
   assert.strictEqual(JSON.stringify(ev(`SRS.words`)), snap, "practice must not change schedule");
 
   /* ---------- parent page: forgetting section, backup, import of old data ---------- */
-  ev(`parentPage()`);
+  ev(`parentPage("view")`);
   let html = ev(`app.innerHTML`);
-  assert(/遗忘情况/.test(html) && /最容易忘的词/.test(html) && /还没学会的词/.test(html) && /每天新词数/.test(html) && /语速/.test(html));
+  assert(/遗忘情况/.test(html) && /最容易忘的词/.test(html) && /还没学会的词/.test(html));
+  ev(`parentPage("set")`);
+  assert(/每天新词数/.test(ev(`app.innerHTML`)) && /语速/.test(ev(`app.innerHTML`)), "settings tab has new-word count and speed");
+  ev(`parentPage("view")`);
   assert(/忘 1 \/ 复习 \d+ 次/.test(html), "weak word listed");
   // check-in calendar: Monday-first weekday header, 7 cells per row, 30 real days, today is last real cell
   {
@@ -790,7 +893,7 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
     wipe();
     for(let n = 1; n <= 6; n++) assert(ev(`createProfile("K${n}")`).ok, "child " + n);
     assert(/最多 6 个/.test(ev(`createProfile("K7")`).err));
-    ev(`parentPage()`); assert(!/data-act="prof-add"/.test(ev(`app.innerHTML`)), "no add button at the limit");
+    ev(`parentPage("acct")`); assert(!/data-act="prof-add"/.test(ev(`app.innerHTML`)), "no add button at the limit");
     ev(`chooserPage()`); assert(!/prof-add/.test(ev(`app.innerHTML`)));
 
     // damaged profile list / dangling current id / legacy junk
@@ -827,8 +930,9 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
     assert.strictEqual(txt.app, "abc_game"); assert.strictEqual(txt.format, 1); assert.strictEqual(txt.name, "Lily");
     assert(txt.data.words.hose && !("log" in txt.data), "text export keeps progress, drops the log");
     assert.strictEqual(JSON.parse(ev(`recordText(undefined, true)`)).data.log.length, 1, "file export keeps the log");
-    assert(/id="bk"/.test((ev(`parentPage()`), ev(`app.innerHTML`))));
-    assert.strictEqual(JSON.parse(ev(`document.getElementById("bk").value`)).name, "Lily", "text box shows the current child's record");
+    ev(`parentPage("acct")`);
+    assert(/id="bk"/.test(ev(`app.innerHTML`)), "one paste box for links / old text");
+    assert(!/data-act="p-copy"/.test(ev(`app.innerHTML`)), "no more 'copy text' button");
   }
   {
     // file download
@@ -840,8 +944,10 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
     assert.strictEqual(fileObj.name, "Lily"); assert.strictEqual(fileObj.data.log.length, 1);
     assert(ev(`curProfile().exported`) > 0); assert(/今天导出过记录/.test(ev(`app.innerHTML`)), "page re-rendered with the export time");
     assert(/已开始下载/.test(alerts[alerts.length - 1]), "tells the parent what to do if nothing happens");
-    ev(`__advanceDay(20)`); ev(`parentPage()`);
+    ev(`__advanceDay(20)`); ev(`parentPage("acct")`);
     assert(/20 天前/.test(ev(`app.innerHTML`)) && /超过 14 天没有导出/.test(ev(`app.innerHTML`)), "reminder after 14 days");
+    ev(`parentPage("view")`);
+    assert(/需要你做的事/.test(ev(`app.innerHTML`)) && /超过 14 天没有导出/.test(ev(`app.innerHTML`)) && /data-act="p-tab" data-t="acct"/.test(ev(`app.innerHTML`)), "...and in the to-do box on the overview");
     ev(`__advanceDay(-20)`);
     // a name with path characters is safe in the file name
     ev(`renameProfile(PROFS.cur, 'a/b:c*d')`); dl.length = 0; await click("prof-download", 0, {id});
@@ -871,7 +977,7 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
     assert.strictEqual(ev(`importRecord(${JSON.stringify(file)})`).mode, "overwrite");
     assert(!ev(`SRS.words.pole`), "overwrite replaces the record"); assert.strictEqual(profs().list.length, 1, "still one Lily");
     // pasting text on the parent page works the same way
-    ev(`parentPage()`); ev(`document.getElementById("bk").value = ${JSON.stringify(file)}`);
+    ev(`parentPage("acct")`); ev(`document.getElementById("bk").value = ${JSON.stringify(file)}`);
     await click("p-import"); assert(/导入成功/.test(ctx.__alerts[ctx.__alerts.length - 1]));
     assert(/家长页/.test(ev(`app.innerHTML`)), "stays on the parent page");
     // old-style backup (no name) replaces the current child after asking
@@ -898,9 +1004,10 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
     assert.deepStrictEqual(J(ev(`SRS.daily.news`)), ["a"]); assert.strictEqual(ev(`SRS.log.length`), 1);
     assert.strictEqual(ev(`SRS.cfg.newPerDay`), 20); assert.strictEqual(ev(`SRS.cfg.enRate`), 1);
     assert.strictEqual(ev(`curProfile().name`), "<img src=x o", "hostile name is cut and kept as plain text");
-    ev(`parentPage()`); ev(`chooserPage()`);
+    ev(`parentPage("acct")`); ev(`chooserPage()`);
     assert(!/<img/.test(ev(`app.innerHTML`)), "hostile name is escaped in the chooser");
-    ev(`parentPage()`); assert(!/<img/.test(ev(`app.innerHTML`)), "...and on the parent page");
+    ev(`parentPage("acct")`); assert(!/<img/.test(ev(`app.innerHTML`)), "...and on the parent page");
+    ev(`parentPage("view")`); assert(!/<img/.test(ev(`app.innerHTML`)), "...and in the overview");
     // a file chosen through the <input type=file> goes through the same path (FileReader is a browser API, so only the guard clauses run here)
     ctx.__alerts.length = 0;
     ev(`importFileChosen({files: [{size: 9 * 1024 * 1024}], value: "x"})`); assert(/太大/.test(ctx.__alerts[0]));
@@ -910,15 +1017,20 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
   /* ---------- parent page: accounts section replaces the old backup box ---------- */
   {
     wipe(); ev(`createProfile("Lily")`); seed("hose", {box: 1}); ev(`saveSRS(); createProfile("Tom")`);
-    ev(`parentPage()`);
+    ev(`parentPage("acct")`);
     const h = ev(`app.innerHTML`);
     assert(/小朋友账户/.test(h) && /prof-download/.test(h) && /prof-rename/.test(h) && /prof-delete/.test(h) && /p-pick/.test(h) && /type="file" id="imp"/.test(h));
     assert(!/备份 \/ 恢复进度/.test(h), "old backup section is gone");
     assert((h.match(/data-act="prof-switch"/g) || []).length === 1, "switch button only for the other child");
-    assert(/正在使用/.test(h) && /微信里下载不了文件/.test(h) && /data-act="p-reset"/.test(h));
-    assert(!/<details open/.test(h), "text fallback is collapsed outside WeChat");
-    ev(`navigator.userAgent = "Mozilla/5.0 MicroMessenger/8.0"`); ev(`parentPage()`);
-    assert(/<details open/.test(ev(`app.innerHTML`)), "text fallback is open inside WeChat");
+    assert(/正在使用/.test(h) && /data-act="p-reset"/.test(h));
+    // delete / reset live in a collapsed danger zone, not in the child rows
+    assert(/data-keep="danger"(?! open)/.test(h) && /危险操作/.test(h), "danger zone is collapsed");
+    assert.strictEqual((h.match(/data-act="prof-delete"/g) || []).length, 2, "one delete button per child, inside the danger zone");
+    assert(h.indexOf("危险操作") < h.indexOf('data-act="prof-delete"') && h.indexOf("危险操作") < h.indexOf('data-act="p-reset"'));
+    assert(!/<div class="prof">(?:(?!<\/div><\/div>)[\s\S])*prof-delete/.test(h), "no delete button in the child rows");
+    assert(!/data-keep="paste" open/.test(h), "paste box is collapsed outside WeChat");
+    ev(`navigator.userAgent = "Mozilla/5.0 MicroMessenger/8.0"`); ev(`parentPage("acct")`);
+    assert(/data-keep="paste" open/.test(ev(`app.innerHTML`)) && /微信里下载不了文件/.test(ev(`app.innerHTML`)), "paste box is open inside WeChat");
     ev(`delete navigator.userAgent`);
     // switching from the parent page keeps you there
     await click("prof-switch", 0, {id: ev(`PROFS.list[0].id`)});
@@ -1008,14 +1120,14 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
     assert.strictEqual(ev(`curProfile().name`), "小明😀"); assert(/连续/.test(ev(`app.innerHTML`)));
 
     // parent page: the link button fills the box, copies it, and counts as an export
-    ev(`parentPage()`); h = ev(`app.innerHTML`);
+    ev(`parentPage("acct")`); h = ev(`app.innerHTML`);
     assert(/data-act="prof-link"/.test(h) && /id="lk"/.test(h) && /data-act="prof-download"/.test(h), "browser: link + download");
     ctx.__alerts.length = 0;
     await click("prof-link", 0, {id: ev(`PROFS.cur`)});
     assert(ev(`document.getElementById("lk").value`).startsWith("https://alexlee-xz.github.io/abc_game/#r="), "box shows the link");
     assert(/已复制“小明😀”的传送链接/.test(ctx.__alerts[0]));
     assert(ev(`curProfile().exported`) > 0, "copying the link counts as a backup");
-    ev(`navigator.userAgent = "Mozilla/5.0 MicroMessenger/8.0"`); ev(`parentPage()`); h = ev(`app.innerHTML`);
+    ev(`navigator.userAgent = "Mozilla/5.0 MicroMessenger/8.0"`); ev(`parentPage("acct")`); h = ev(`app.innerHTML`);
     assert(/data-act="prof-link"/.test(h) && !/data-act="prof-download"/.test(h) && /微信不支持下载文件/.test(h), "WeChat: link instead of download");
     ev(`delete navigator.userAgent`);
   }
@@ -1060,7 +1172,7 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
     assert(/5 棵小树渴了/.test(ev(`weeklyText()`)), "thirsty trees mentioned");
     assert(ev(`weeklyText()`).split("📌")[1].split("。").filter(Boolean).length <= 2 + 1, "at most two pieces of advice");
     // page: shows the same text and the copy button puts it on the clipboard
-    ev(`parentPage()`);
+    ev(`parentPage("view")`);
     const h = ev(`app.innerHTML`);
     assert(/每周小结/.test(h) && /id="wk"/.test(h) && /readonly/.test(h) && /p-copy-wk/.test(h));
     assert.strictEqual(ev(`document.getElementById("wk").value`), ev(`weeklyText()`));
