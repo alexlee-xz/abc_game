@@ -32,6 +32,7 @@ const prelude = `
   const player = {pause(){}};
   const played = [];
   const playSeq = async list => { played.push(list.filter(Boolean).map(c=>c.url)); return true; };
+  const playSeqCapped = playSeq;
   const shuffle = a => a.slice().sort(()=>Math.random()-0.5);
   const clip = (kind,id,text,lang)=>({url:'audio/'+kind+'/'+id+'.mp3',text,lang});
   const enClip=(it,v)=>clip(v===2?'en2':'en',it.id,it.en,'en'), zhClip=it=>clip('zh',it.id,it.zh,'zh');
@@ -50,6 +51,9 @@ vm.runInContext(fs.readFileSync(path.join(root, "art.js"), "utf8"), ctx);
 vm.runInContext(prelude, ctx);
 // speak.js provides ipaHtml/recHtml used by the new-word page (its click listener is harmless here)
 vm.runInContext("globalThis.window = globalThis; globalThis.navigator = {};", ctx);
+ctx.btoa = btoa; ctx.atob = atob;
+vm.runInContext(`globalThis.location = {href: "https://alexlee-xz.github.io/abc_game/", hash: "", pathname: "/abc_game/", search: ""};
+  globalThis.history = {replaceState(){ location.hash = ""; }};`, ctx);
 vm.runInContext(fs.readFileSync(path.join(root, "speak.js"), "utf8"), ctx);
 vm.runInContext(fs.readFileSync(path.join(root, "profile.js"), "utf8"), ctx);
 vm.runInContext(fs.readFileSync(path.join(root, "srs.js"), "utf8"), ctx);
@@ -897,6 +901,97 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
     ev(`switchProfile(PROFS.list[1].id)`); assert.strictEqual(ev(`curProfile().name`), "Tom");
     // pasted file via the change event of the <input type=file> with no file chosen does nothing
     changeHandlers.forEach(h => h({target: {id: "imp", files: []}}));
+  }
+
+  /* ---------- transfer link: move a record between WeChat and the phone's own browser ---------- */
+  {
+    const enc = o => Buffer.from(JSON.stringify(o), "utf8").toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    const setHash = h => ev(`location.hash = ${JSON.stringify(h)}; hashHandled = false;`);
+    wipe(); ev(`createProfile("小明😀")`); const t = today();
+    ev(`const t = ${t}; questPool().forEach((it, i) => { SRS.words[wkey(it)] = Object.assign(newWord(todayNum()), {box: i % 6, due: t + i, seen: 3 + i, right: 2 + i, wrong: i % 3, last: t - 1, lastGood: i % 2 ? null : t - 2, born: t - i}); });`
+       + ` SRS.story.fire = 3; SRS.doneDays = [${t - 2}, ${t - 1}]; SRS.streak = 2; SRS.cfg.enRate = 1.2; logAnswer(${t}, "hose", true, 1, 800, "r", 1); saveSRS();`);
+    const before = J(ev(`SRS`));
+    const link = ev(`transferLink()`);
+    assert(link.startsWith("https://alexlee-xz.github.io/abc_game/#r="), "link shape: " + link.slice(0, 60));
+    assert(/^[\x21-\x7e]+$/.test(link), "link is plain ASCII (safe to paste anywhere)");
+    assert(link.length < 5000, "19 learned words fit in a short link: " + link.length);
+    assert(link.length < ev(`recordText(undefined, false)`).length, "shorter than the plain text export");
+    // round trip onto a "new phone" (a different browser has an empty store)
+    ev(`deleteProfile(PROFS.cur)`); assert.strictEqual(profs().list.length, 0);
+    ctx.__alerts.length = 0;
+    const r = ev(`importRecord(${JSON.stringify(link)})`);
+    assert.strictEqual(r.mode, "new"); assert.strictEqual(ev(`curProfile().name`), "小明😀", "name incl. emoji survives");
+    const after = J(ev(`SRS`));
+    assert.deepStrictEqual(after.words, before.words, "all word progress survives");
+    ["doneDays", "streak", "story", "cfg", "daily", "lastDone"].forEach(k => assert.deepStrictEqual(after[k], before[k], k + " survives"));
+    assert.deepStrictEqual(after.log, [], "the per-question log is not carried (keeps the link short)");
+    // a link pasted with other text around it, and WeChat's extra query string
+    const codeOnly = link.split("#r=")[1];
+    wipe();
+    assert.strictEqual(ev(`importRecord(${JSON.stringify("看这个：https://alexlee-xz.github.io/abc_game/?from=singlemessage&isappinstalled=0#r=" + codeOnly + " 谢谢")})`).mode, "new");
+    wipe(); assert.strictEqual(ev(`importRecord(${JSON.stringify("#r=" + codeOnly)})`).mode, "new", "bare #r= part works too");
+    // damaged links are refused and change nothing
+    const snap = JSON.stringify(ev(`SRS`));
+    [link.slice(0, link.length - 40), link + "ZZZZ", "#r=AAAAAAAAAAAAAAAA", "#r=" + enc({v: 2, n: "x", w: []}), "#r=" + enc({v: 1, w: []}), "#r=" + enc({v: 1, n: "x", w: 5}), "?r=short"].forEach(x => {
+      const e = ev(`importRecord(${JSON.stringify(x)})`);
+      assert(e.err, "rejects " + x.slice(-30)); });
+    assert.strictEqual(JSON.stringify(ev(`SRS`)), snap);
+    // a hand-made hostile link goes through the same clean-up as files
+    wipe();
+    const evil = "#r=" + enc({v: 1, n: "<img src=x onerror=alert(1)>", t: "x", x: {streak: -4, cfg: {newPerDay: 9999}},
+      w: [["hose", 99, "soon", 1, -5, 1e9, null, null, null, null, "x"], "str", [7], ["zzz"], null]});
+    const er = ev(`importRecord(${JSON.stringify(evil)})`);
+    assert.strictEqual(er.mode, "new"); assert.strictEqual(ev(`curProfile().name`), "<img src=x o");
+    const w = J(ev(`SRS.words`)); assert.deepStrictEqual(Object.keys(w).sort(), ["hose", "zzz"]);
+    assert.strictEqual(w.hose.box, 5); assert.strictEqual(w.hose.due, 0); assert.strictEqual(w.hose.right, 0); assert(!("born" in w.hose));
+    assert.strictEqual(ev(`SRS.streak`), 0); assert.strictEqual(ev(`SRS.cfg.newPerDay`), 20);
+
+    // opening the link: a confirm page first, nothing is changed until you agree
+    wipe(); setHash("#r=" + codeOnly); ev(`boot()`);
+    let h = ev(`app.innerHTML`);
+    assert(/收到学习记录/.test(h) && /小明😀/.test(h) && /已学 19 个词/.test(h) && /p-hash-import/.test(h) && /p-hash-cancel/.test(h) && /还没有这个名字/.test(h), "confirm page");
+    assert.strictEqual(profs().list.length, 0, "nothing imported yet"); assert.strictEqual(ev(`location.hash`), "", "link is removed from the address bar");
+    ctx.__alerts.length = 0;
+    await click("p-hash-import");
+    assert.strictEqual(profs().list.length, 1); assert.strictEqual(ev(`curProfile().name`), "小明😀"); assert(/导入成功/.test(ctx.__alerts[0]));
+    assert(/连续/.test(ev(`app.innerHTML`)), "lands on the home page"); assert.strictEqual(Object.keys(ev(`SRS.words`)).length, 19);
+    ev(`boot()`); assert(!/收到学习记录/.test(ev(`app.innerHTML`)), "handled once per page load");
+    // existing child with the same name: warns, then overwrites WITHOUT a second confirm
+    seed("zzz", {box: 1}); ev(`saveSRS()`); setHash("#r=" + codeOnly); ev(`boot()`);
+    h = ev(`app.innerHTML`); assert(/覆盖/.test(h) && h.includes(`已学 ${Object.keys(ev(`SRS.words`)).length} 个词）`), "overwrite warning shows the current progress");
+    ctx.__confirmAns = false; ctx.__alerts.length = 0;
+    await click("p-hash-import");
+    assert(!ev(`SRS.words.zzz`), "overwritten"); assert.strictEqual(profs().list.length, 1); ctx.__confirmAns = true;
+    // "not now": leaves everything alone and carries on normally
+    seed("zzz", {box: 1}); ev(`saveSRS()`); setHash("#r=" + codeOnly); ev(`boot()`);
+    await click("p-hash-cancel");
+    assert(ev(`SRS.words.zzz`), "declined"); assert(/连续/.test(ev(`app.innerHTML`)), "back to the home page");
+    wipe(); setHash("#r=" + codeOnly); ev(`boot()`); await click("p-hash-cancel");
+    assert(/小朋友叫什么名字/.test(ev(`app.innerHTML`)) && profs().list.length === 0, "declining on a fresh phone goes to the welcome page");
+    // a broken link in the address bar: tell the parent, then start normally
+    wipe(); setHash("#r=AAAAAAAAAAAAAAAA"); ctx.__alerts.length = 0; ev(`boot()`);
+    assert(/不完整/.test(ctx.__alerts[0]) && /小朋友叫什么名字/.test(ev(`app.innerHTML`)), "broken link falls back to the welcome page");
+    setHash("");
+
+    // welcome page: paste a link (or text) instead of choosing a file
+    wipe(); ev(`welcomePage()`); h = ev(`app.innerHTML`);
+    assert(/id="bk"/.test(h) && /data-act="p-import"/.test(h) && !/<details open/.test(h), "paste box on the welcome page");
+    ev(`navigator.userAgent = "Mozilla/5.0 MicroMessenger/8.0"`); ev(`welcomePage()`);
+    assert(/<details open/.test(ev(`app.innerHTML`)), "paste box is open inside WeChat"); ev(`delete navigator.userAgent`);
+    ev(`document.getElementById("bk").value = ${JSON.stringify(link)}`); ev(`accWhere = "welcome"`); await click("p-import");
+    assert.strictEqual(ev(`curProfile().name`), "小明😀"); assert(/连续/.test(ev(`app.innerHTML`)));
+
+    // parent page: the link button fills the box, copies it, and counts as an export
+    ev(`parentPage()`); h = ev(`app.innerHTML`);
+    assert(/data-act="prof-link"/.test(h) && /id="lk"/.test(h) && /data-act="prof-download"/.test(h), "browser: link + download");
+    ctx.__alerts.length = 0;
+    await click("prof-link", 0, {id: ev(`PROFS.cur`)});
+    assert(ev(`document.getElementById("lk").value`).startsWith("https://alexlee-xz.github.io/abc_game/#r="), "box shows the link");
+    assert(/已复制“小明😀”的传送链接/.test(ctx.__alerts[0]));
+    assert(ev(`curProfile().exported`) > 0, "copying the link counts as a backup");
+    ev(`navigator.userAgent = "Mozilla/5.0 MicroMessenger/8.0"`); ev(`parentPage()`); h = ev(`app.innerHTML`);
+    assert(/data-act="prof-link"/.test(h) && !/data-act="prof-download"/.test(h) && /微信不支持下载文件/.test(h), "WeChat: link instead of download");
+    ev(`delete navigator.userAgent`);
   }
 
   /* ---------- weekly summary ---------- */

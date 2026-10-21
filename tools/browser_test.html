@@ -165,11 +165,43 @@ f.addEventListener("load", async () => {
   // import through a real <input type=file> + FileReader
   const rec = JSON.stringify({app: "abc_game", format: 1, name: "Zoe", data: {words: {teacher: {box: 3, due: 5, right: 2}}, doneDays: [], streak: 0, lastDone: 0}});
   const dt = new w.DataTransfer(); dt.items.add(new w.File([rec], "abc_Zoe.json", {type: "application/json"}));
-  const imp = d.getElementById("imp"); imp.files = dt.files; imp.dispatchEvent(new w.Event("change", {bubbles: true})); await sleep(400);
+  const imp = d.getElementById("imp"); imp.files = dt.files; imp.dispatchEvent(new w.Event("change", {bubbles: true}));
+  for(let i = 0; i < 200 && !w.eval("PROFS.list.some(p => p.name === 'Zoe')"); i++) await sleep(50);      // FileReader is real-time, not virtual-time
+  await sleep(100);
   log.push("imported file: current=" + w.eval("curProfile().name") + " words=" + w.eval("Object.keys(SRS.words).join()") + " profiles=" + w.eval("PROFS.list.map(p => p.name).join()"));
   // reload-like: rebuild state from localStorage
   w.eval("PROFS = readProfiles(); SRS = loadSRS();");
   log.push("after reload: current=" + w.eval("curProfile().name") + " words=" + w.eval("Object.keys(SRS.words).join()"));
+
+  // ----- "玩一玩" must never get stuck: tap the right card very quickly in every round (the old bug) -----
+  w.eval("home()"); await sleep(100);
+  click('[data-act="lesson"][data-i="1"]'); await sleep(100);
+  click('[data-act="game"]'); await sleep(50);
+  let rounds = 0, stuckAt = -1;
+  for(let n = 0; n < 8; n++){
+    const before = w.eval("ri");
+    const cardsG = d.querySelectorAll('[data-act="choose"]');
+    if(!cardsG.length){ stuckAt = n; break; }
+    const rightIdx = w.eval("choices.findIndex(c => c.id === rounds[ri].id)");
+    const target = cardsG[rightIdx];
+    target.click();                       // tapped immediately, usually while the prompt is still loading
+    let waited = 0;
+    while(w.eval("ri") === before && !d.getElementById("app").innerText.includes("再玩一次") && waited < 30000){ await sleep(100); waited += 100; }
+    if(w.eval("ri") === before && !d.getElementById("app").innerText.includes("再玩一次")){ stuckAt = n; break; }
+    rounds++;
+  }
+  log.push("game: rounds advanced=" + rounds + " stuckAt=" + stuckAt + " finished=" + d.getElementById("app").innerText.includes("再玩一次") + " (expect 8, -1, true)");
+
+  // ----- transfer link in the real DOM: build it, open it as if tapped in another browser, confirm -----
+  w.eval(`SRS = freshSRS(); SRS.words.teacher = Object.assign(newWord(todayNum()), {box: 3, due: todayNum() + 2}); saveSRS();`);
+  const tlink = w.eval("transferLink()");
+  log.push("transfer link: length=" + tlink.length + " ascii=" + /^[\x21-\x7e]+$/.test(tlink) + " base=" + tlink.split("#")[0].replace(/^.*\/\/[^/]*/, "").slice(0, 30));
+  w.eval("PROFS.list.forEach(p => deleteProfile(p.id)); localStorage.clear();");
+  w.history.replaceState(null, "", w.location.pathname + w.location.search + "#r=" + tlink.split("#r=")[1]);
+  w.eval("hashHandled = false; boot()"); await sleep(100);
+  log.push("link page: " + d.getElementById("app").innerText.replace(/\s+/g, " ").slice(0, 60) + " | hash cleared=" + (w.location.hash === "") + " profiles=" + w.eval("PROFS.list.length"));
+  click('[data-act="p-hash-import"]'); await sleep(200);
+  log.push("after import: current=" + w.eval("curProfile().name") + " words=" + w.eval("Object.keys(SRS.words).join()") + " box=" + w.eval("SRS.words.teacher.box"));
   w.eval("localStorage.clear()");
   out.textContent = log.join("\n");
   document.title = "DONE";

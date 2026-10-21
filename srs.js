@@ -333,6 +333,16 @@ function homeQuestHtml(){
 
 /* ---------- 魔法任务 ---------- */
 let Q = null;
+// 后台把这一组要用的语音下载好（play.js 的 warmAudio），网络不稳时不会中途断绣。缺少这些函数（测试环境、旧缓存）就跳过
+function warmFor(items){
+  if(typeof warmAudio !== "function" || typeof clipUrls !== "function") return;
+  try{
+    const urls = [];
+    items.forEach(it => { if(it) urls.push(...clipUrls(it)); });
+    FX.forEach(f => urls.push("audio/fx/" + f.id + ".mp3"));
+    warmAudio(urls);
+  }catch(e){}
+}
 function startQuest(){
   session++;
   const {due, news} = buildQueue();
@@ -370,6 +380,7 @@ function startQuest(){
     }
   }
   addSayAndActSteps(steps, due, news);
+  warmFor(steps.map(s => s.it));
   Q = {steps, i: 0, mode, stars: 0, intro: true, cur: null, step: null, choices: [], locked: false,
        review: false, conf: {}, qid: 0, tries: 0, ms: 0, t0: null, nq: 0, voice: 1, sent: false, wrongs: 0};
   questStep();
@@ -516,7 +527,7 @@ async function qChoose(i, el){
   if(zhAll()) list.push(zhClip(it));       // 中文翻译默认只在新词页播
   if(r.kind === "up" && Q.review) list.push(fx("fx_water_zh"));
   const s = session;
-  await playSeq(list);
+  await playSeqCapped(list);
   if(s !== session) return;      // 中途已离开
   Q.i++;
   questStep();
@@ -578,11 +589,11 @@ async function sayDone(ok){
     Q.stars++;
     const r = applyResult(s, true, 0, 1);
     if(fb) fb.textContent = feedbackText(r) || "说得真好！";
-    await playSeq([fx("fx_good_en"), enClip(it), ...(zhAll() ? [zhClip(it)] : [])]);
+    await playSeqCapped([fx("fx_good_en"), enClip(it), ...(zhAll() ? [zhClip(it)] : [])]);
   }else{
     insertStep({type: "quiz", it, review: true, probe: 1, need: 1, fb: true}, RETRY_GAP);
     if(fb) fb.textContent = "没关系，跟我读！等一下再考考你 🙂";
-    await playSeq([fx("fx_look_zh"), enClip(it), enClip(it)]);
+    await playSeqCapped([fx("fx_look_zh"), enClip(it), enClip(it)]);
   }
   if(sn !== session) return;
   Q.i++;
@@ -613,7 +624,7 @@ async function actDone(ok){
   if(!Q || Q.locked || !Q.step || Q.step.type !== "act") return;
   Q.locked = true;
   const sn = session;
-  if(ok) await playSeq([fx("fx_good_en")]);
+  if(ok) await playSeqCapped([fx("fx_good_en")]);
   if(sn !== session) return;
   Q.i++;
   questStep();

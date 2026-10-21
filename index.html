@@ -140,66 +140,23 @@
 <div id="app"></div>
 <div id="detail"><div class="panel" id="panel"></div></div>
 
-<script src="data.js?v=14"></script>
-<script src="art.js?v=14"></script>
-<script src="speak.js?v=14"></script>
-<script src="profile.js?v=14"></script>
-<script src="srs.js?v=14"></script>
-<script src="account.js?v=14"></script>
+<script src="data.js?v=15"></script>
+<script src="art.js?v=15"></script>
+<script src="play.js?v=15"></script>
+<script src="speak.js?v=15"></script>
+<script src="profile.js?v=15"></script>
+<script src="srs.js?v=15"></script>
+<script src="account.js?v=15"></script>
 <script>
-/* ============ 语音播放 ============
-   微信内置浏览器不支持 speechSynthesis，所以用预先生成的 mp3 + 单个 Audio 元素
-   （第一次点击时被"解锁"后，后续切换 src 都能自动播放）。mp3 加载失败时才回退到 TTS。 */
-const player = new Audio();
-player.preload = "auto";
-let token = 0;
-const sleep = ms => new Promise(r => setTimeout(r, ms));
+/* 语音播放（player / playSeq / 预加载）在 play.js 里。这里只放“怎么拼出一段语音”。 */
 const clip = (kind, id, text, lang) => ({url:`audio/${kind}/${id}.mp3`, text, lang});
-
-// 家长页设置的语速（srs.js 里的 rateFor）；设置不可用时用原速
-const rateOf = c => { try{ const r = rateFor(c); return r > 0 ? r : 1; }catch(e){ return 1; } };
-
-function ttsFallback(c){
-  return new Promise(res=>{
-    try{
-      if(!("speechSynthesis" in window)) return res();
-      const u = new SpeechSynthesisUtterance(c.text);
-      u.lang = c.lang === "zh" ? "zh-CN" : "en-US"; u.rate = 0.8 * rateOf(c);
-      u.onend = u.onerror = () => res();
-      speechSynthesis.speak(u);
-    }catch(e){ res(); }
-  });
-}
-function playOne(c){
-  return new Promise(res=>{
-    let finished = false;
-    const done = ()=>{ if(finished) return; finished = true; player.onended = player.onerror = null; res(); };
-    const fail = ()=>{ if(finished) return; finished = true; player.onended = player.onerror = null; ttsFallback(c).then(res); };
-    player.onended = done;
-    player.onerror = fail;
-    const r = rateOf(c);
-    player.defaultPlaybackRate = r;      // 换 src 会把 playbackRate 重置成 defaultPlaybackRate，所以两个都要设
-    try{ player.preservesPitch = true; player.webkitPreservesPitch = true; }catch(e){}
-    player.src = c.url;
-    player.playbackRate = r;
-    const p = player.play();
-    if(p && p.catch) p.catch(fail);
-  });
-}
-async function playSeq(list){
-  const my = ++token;
-  try{ player.pause(); speechSynthesis.cancel(); }catch(e){}
-  for(const c of list){
-    if(!c) continue;
-    if(my !== token) return false;
-    await playOne(c);
-    if(my !== token) return false;
-    await sleep(200);
-  }
-  return true;
-}
-// 微信 iOS：JSBridge 就绪后再预热一次
-document.addEventListener("WeixinJSBridgeReady", ()=>{ try{ player.load(); }catch(e){} });
+// 一个词/句子可能用到的全部语音地址（用来在后台预加载）
+const clipUrls = it => {
+  const u = [enClip(it).url, zhClip(it).url];
+  if(!it.sentence && it.game !== false) u.push(enClip(it, 2).url);
+  if(it.sen) u.push(senClip(it).url, senClip(it, 2).url, senZhClip(it).url);
+  return u;
+};
 
 // v === 2 用第二个英文声音（en2 / sen2），其余用默认声音
 const enClip  = (it, v) => clip(v === 2 ? "en2" : "en", it.id, it.en, "en");
@@ -294,6 +251,7 @@ function game(){
   const pool = lesson.items.filter(i=>i.game !== false);
   rounds = shuffle(pool).slice(0, 8);
   ri = 0; stars = 0;
+  warmFor(rounds);
   round();
 }
 // 有句子的（如 I can be a teacher.）读句子，否则读单词
@@ -326,7 +284,7 @@ async function choose(i, el){
     el.classList.add("correct");
     if(!missed) stars++;
     const s = session;
-    await playSeq(showZh() ? [fx("fx_good_en"), fx("fx_good_zh"), enClip(it), zhClip(it)] : [fx("fx_good_en"), enClip(it)]);
+    await playSeqCapped(showZh() ? [fx("fx_good_en"), fx("fx_good_zh"), enClip(it), zhClip(it)] : [fx("fx_good_en"), enClip(it)]);
     if(s !== session) return;   // 中途已退出本局
     ri++;
     ri < rounds.length ? round() : finish();
