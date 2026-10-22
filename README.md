@@ -34,7 +34,7 @@
   - 学一学：点图片听英文和中文；每个词下面有音标，点“跟读”让孩子读一读。录多久可以在家长页分别设置“单词”和“句子”的录音时长（见下）。
   - 玩一玩：听声音，找图片。
 
-所有声音都是提前合成好的 mp3（英文用美式儿童感女声和美式男声，中文用普通话女声），微信里也能正常播放。英标页里“单个音”（/ɪ/、/p/ 这样的音，不是单词）用开源的 eSpeak NG（GPL-3.0）合成，是机器合成的声音，所以辅音会带一点轻轻的元音（/p/ 听起来像“噗”），比真人发音略生硬；单词和口型说明仍然用上面的声音。重新生成：`pip install espeakng-loader edge-tts`，然后运行 `python tools/gen_phonemes.py`（单个音，不需要安装 eSpeak，也不需要管理员权限）和 `python tools/gen_audio.py`（单词、口型说明）；已有的文件会跳过，想重做某个音就删掉对应 mp3（或给 gen_phonemes.py 加 `--force`）。
+所有声音都是提前合成好的 mp3（英文用美式儿童感女声和美式男声，中文用普通话女声），微信里也能正常播放。英标页里“单个音”（/ɪ/、/p/ 这样的音，不是单词）用开源的 eSpeak NG（GPL-3.0）合成，是机器合成的声音，所以辅音会带一点轻轻的元音（/p/ 听起来像“噗”），比真人发音略生硬；单词和口型说明仍然用上面的声音。重新生成：`pip install espeakng-loader edge-tts`，然后运行 `python tools/gen_phonemes.py`（单个音，不需要安装 eSpeak，也不需要管理员权限）和 `python tools/gen_audio.py`（单词、口型说明）；已有的文件会跳过，想重做某个音就删掉对应 mp3（或给 gen_phonemes.py 加 `--force`）。元音是否发对可以用 `python tools/check_vowels.py` 测（用共振峰和标准美音数值比较，不用靠耳朵）。
 
 **图片**：所有词和句子的配图都是统一风格的原创简笔画（粗深棕色轮廓 + 平涂色块，内联 SVG，源码在 [js/content/art.js](js/content/art.js)）。人物共用同一个“大头小朋友”模板，只靠服装和道具区分职业，不靠性别；因为是矢量图，在任何手机上长得一样（emoji 在不同系统里差别很大）。想看全部图片，打开 [tools/art_preview.html](tools/art_preview.html)（本地起一个静态服务器即可）。换图只需改 art.js 里对应 id 的那一段，找不到图时会自动用回原来的 emoji。
 

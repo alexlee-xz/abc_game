@@ -17,14 +17,32 @@ import espeakng_loader
 _lib = None
 _rate = 22050
 _chunks: list = []
+_events: list = []          # (phoneme mnemonic, start in samples) of the current utterance
+_done = [0]                 # samples delivered so far
 
-CB = ctypes.CFUNCTYPE(ctypes.c_int, ctypes.POINTER(ctypes.c_short), ctypes.c_int, ctypes.c_void_p)
+
+class _Event(ctypes.Structure):
+    """espeak_EVENT (espeak-ng speak_lib.h)"""
+    _fields_ = [("type", ctypes.c_int), ("unique_identifier", ctypes.c_uint), ("text_position", ctypes.c_int),
+                ("length", ctypes.c_int), ("audio_position", ctypes.c_int), ("sample", ctypes.c_int),
+                ("user_data", ctypes.c_void_p), ("id", ctypes.c_char * 8)]
+
+
+CB = ctypes.CFUNCTYPE(ctypes.c_int, ctypes.POINTER(ctypes.c_short), ctypes.c_int, ctypes.POINTER(_Event))
+EVENT_PHONEME = 7
 
 
 @CB
 def _on_samples(wav, n, events):
+    if events:
+        i = 0
+        while events[i].type != 0:                       # 0 = list terminated
+            if events[i].type == EVENT_PHONEME:
+                _events.append((events[i].id.split(b"\0")[0].decode("latin-1"), events[i].audio_position * _rate // 1000))
+            i += 1
     if wav and n > 0:
         _chunks.append(ctypes.string_at(wav, n * 2))
+        _done[0] += n
     return 0
 
 
@@ -52,7 +70,8 @@ def _init():
     lib.espeak_Initialize.restype = ctypes.c_int
     lib.espeak_Initialize.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_char_p, ctypes.c_int]
     # AUDIO_OUTPUT_SYNCHRONOUS = 2: samples go to the callback, nothing is played
-    _rate = lib.espeak_Initialize(2, 0, data.encode("ascii"), 0)
+    # options 1 = espeakINITIALIZE_PHONEME_EVENTS: report where each phoneme starts
+    _rate = lib.espeak_Initialize(2, 0, data.encode("ascii"), 1)
     if _rate <= 0:
         raise RuntimeError(f"espeak_Initialize failed ({_rate}); data={data}")
     lib.espeak_SetSynthCallback.argtypes = [CB]
@@ -66,19 +85,35 @@ def _init():
     return lib
 
 
-def synth_pcm(text: str, voice: str = "en-us", speed: int = 110, pitch: int = 50, ssml: bool = False) -> bytes:
-    """Render text (or [[phoneme mnemonics]]) to 16-bit mono PCM at the engine's rate."""
+def synth_pcm(text: str, voice: str = "en-us", speed: int = 110, pitch: int = 50, ssml: bool = False,
+              phonemes: bool = False) -> bytes:
+    """Render text to 16-bit mono PCM at the engine's rate.
+    phonemes=True: [[...]] in the text are eSpeak phoneme mnemonics. Without it eSpeak just reads the brackets
+    as letters ("[[p@]]" -> "pee at"), which is how the first version of the IPA sounds went wrong."""
     lib = _init()
     if lib.espeak_SetVoiceByName(voice.encode()) != 0:
         raise RuntimeError("unknown voice " + voice)
     lib.espeak_SetParameter(1, speed, 0)      # espeakRATE (words per minute)
     lib.espeak_SetParameter(3, pitch, 0)      # espeakPITCH
     _chunks.clear()
+    _events.clear()
+    _done[0] = 0
     raw = text.encode("utf-8") + b"\0"
-    flags = 1 | (0x10 if ssml else 0)         # espeakCHARS_UTF8 | espeakSSML
+    flags = 1 | (0x10 if ssml else 0) | (0x100 if phonemes else 0)   # espeakCHARS_UTF8 | espeakSSML | espeakPHONEMES
     lib.espeak_Synth(raw, len(raw), 0, 0, 0, flags, None, None)
     lib.espeak_Synchronize()
     return b"".join(_chunks)
+
+
+def synth_with_events(text: str, **kw):
+    """(pcm bytes, [(phoneme mnemonic, start sample), ...]) – the start of each phoneme in the output."""
+    pcm = synth_pcm(text, **kw)
+    return pcm, list(_events)
+
+
+def sample_rate() -> int:
+    _init()
+    return _rate
 
 
 def synth_wav(text: str, path: str, **kw) -> float:
