@@ -48,6 +48,17 @@ f.addEventListener("load", async () => {
   click('[data-act="al-game"]'); await sleep(150);
   log.push("letters game: choices=" + d.querySelectorAll('[data-act="al-choose"]').length + " (expect 3) letter size=" + Math.round(d.querySelector(".card.letter").getBoundingClientRect().height) + "px");
   w.eval("home()"); await sleep(100);
+  // IPA: home entry -> chart -> lesson steps -> quiz
+  click('[data-act="ipa"]'); await sleep(100);
+  log.push("ipa page: tiles=" + d.querySelectorAll('.pcard[data-act="ph-open"]').length + " (expect 44) game button=" + !!d.querySelector('[data-act="ph-game"]') + " symbol font size=" + Math.round(parseFloat(w.getComputedStyle(d.querySelector(".psym")).fontSize)) + "px");
+  click('.pcard[data-act="ph-open"][data-i="0"]'); await sleep(150);
+  log.push("ipa listen: big symbol=" + d.querySelector(".phbig").textContent + " speaker=" + !!d.querySelector('[data-act="ph-snd"]'));
+  click('[data-act="ph-next"]'); await sleep(80); click('[data-act="ph-next"]'); await sleep(80);
+  log.push("ipa words: cards=" + d.querySelectorAll('[data-act="ph-word"]').length + " (expect 3) highlighted=" + d.querySelectorAll(".phw .hl").length + " (expect 3)");
+  click('[data-act="ph-next"]'); await sleep(80); click('[data-act="ph-next"]'); await sleep(150);
+  log.push("ipa quiz: choices=" + d.querySelectorAll('[data-act="ph-pick"]').length + " (expect 3) stars=" + w.eval("phTotals().stars") + " (expect 1)");
+  w.eval("home()"); await sleep(100);
+
   click('[data-act="parent"]'); await sleep(200);
   log.push("gate: shown=" + !!d.getElementById("gate") + " parentPageHidden=" + !d.querySelector(".ptabs") + " question=" + d.querySelector(".gate-q").textContent);
   d.getElementById("gate").value = String(w.eval("parentGateQ.a + parentGateQ.b + 1")); click('[data-act="p-gate"]'); await sleep(100);

@@ -51,7 +51,7 @@ function basicsHtml(){
   const t = alphaTotals();
   return `
     <div class="sec-title">🔤 打基础</div>
-    <button class="big blue" data-act="alpha">🔤 字母 A–Z<small>认识 ${t.letters}/${ALPHABET.length} 个 · ⭐ ${t.stars}/${t.max}</small></button>`;
+    <button class="big blue" data-act="alpha">🔤 字母 A–Z<small>认识 ${t.letters}/${ALPHABET.length} 个 · ⭐ ${t.stars}/${t.max}</small></button>${typeof ipaEntryHtml === "function" ? ipaEntryHtml() : ""}`;
 }
 
 /* ---------- 字母表 ---------- */

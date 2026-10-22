@@ -6,7 +6,7 @@ $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 $fail = 0
 
-foreach($t in "test_play", "test_speak", "test_srs", "test_sync", "test_alpha"){
+foreach($t in "test_play", "test_speak", "test_srs", "test_sync", "test_alpha", "test_ipa"){
     $out = (& node "tests/$t.js" 2>&1 | Out-String)
     $ok = $LASTEXITCODE -eq 0 -and $out -match "ALL OK"
     "{0,-12} {1}" -f $t, $(if($ok){"ok"}else{"FAILED"})
