@@ -14,6 +14,7 @@ function homeQuestHtml(){
     <button class="big green" data-act="garden">🌳 我的小花园<small>种下 ${s.planted}/${s.total} 棵${extra}</small></button>
     ${storyHtml()}
     <div class="chips"><span class="chip">🔥 连续 ${currentStreak()} 天</span>${typeof nameChip === "function" ? nameChip() : ""}</div>
+    ${typeof basicsHtml === "function" ? basicsHtml() : ""}
     <div class="sec-title">📚 单元练习</div>`;
 }
 

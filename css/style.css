@@ -137,3 +137,19 @@
   .sec.todo.ok{background:#e8f5e9; box-shadow:0 3px 0 #a5d6a7}
   .todo-i{font-size:14px; line-height:1.6; padding:3px 0}
   .gate-q{font-size:36px; font-weight:700; color:#e65100; margin:6px 0 14px}
+  /* 字母 */
+  .agrid{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:10px}
+  .acard{background:#fff; border-radius:18px; padding:8px 2px 6px; box-shadow:0 4px 0 #ffcc80; cursor:pointer}
+  .acard:active{transform:translateY(3px); box-shadow:0 1px 0 #ffcc80}
+  .acard.seen{background:#fffde7; box-shadow:0 4px 0 #ffd54f}
+  .ab{font-family:Verdana,"Trebuchet MS",system-ui,sans-serif; line-height:1.2}
+  .ab .up{font-size:34px; font-weight:800; color:#e65100}
+  .ab .lo{font-size:30px; font-weight:700; color:#1e88e5; margin-left:3px}
+  .astars{font-size:13px; color:#ffb300; letter-spacing:1px; min-height:17px}
+  .astars i{font-style:normal; color:#e0e0e0}
+  .alp .ab .up{font-size:84px}
+  .alp .ab .lo{font-size:76px}
+  .card.letter{min-height:120px}
+  .card.letter .ab .up{font-size:44px}
+  .card.letter .ab .lo{font-size:40px}
+  .hl{color:#e53935}

@@ -39,6 +39,15 @@ f.addEventListener("load", async () => {
   }
   // parent page: new sections + level buttons
   click('[data-act="home"]'); await sleep(100);
+  // letters: home entry -> grid -> detail (star) -> game round
+  click('[data-act="alpha"]'); await sleep(100);
+  log.push("alphabet page: tiles=" + d.querySelectorAll('[data-act="al-open"]').length + " (expect 26) game button=" + !!d.querySelector('[data-act="al-game"]'));
+  click('[data-act="al-open"][data-i="0"]'); await sleep(150);
+  log.push("letter detail: word=" + d.querySelector("#panel .en").textContent + " letter=" + d.querySelector("#panel .alp").textContent.replace(/\s/g, "") + " stars=" + w.eval("alphaTotals().stars") + " (expect 1)");
+  click('[data-act="al-close"]'); await sleep(50);
+  click('[data-act="al-game"]'); await sleep(150);
+  log.push("letters game: choices=" + d.querySelectorAll('[data-act="al-choose"]').length + " (expect 3) letter size=" + Math.round(d.querySelector(".card.letter").getBoundingClientRect().height) + "px");
+  w.eval("home()"); await sleep(100);
   click('[data-act="parent"]'); await sleep(200);
   log.push("gate: shown=" + !!d.getElementById("gate") + " parentPageHidden=" + !d.querySelector(".ptabs") + " question=" + d.querySelector(".gate-q").textContent);
   d.getElementById("gate").value = String(w.eval("parentGateQ.a + parentGateQ.b + 1")); click('[data-act="p-gate"]'); await sleep(100);

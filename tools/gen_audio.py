@@ -4,6 +4,7 @@ Usage:  python tools/gen_audio.py
 Output: audio/en|en2|zh|sen|sen2|senzh|act|fx/<id>.mp3  (existing files are skipped)
   en2 / sen2 = the same words and sentences in a second (male) voice, used for review questions
   act        = "Show me a dancer!"-style commands for the move-your-body step
+  let|letw|letz = alphabet page (js/content/alphabet.js): letter name, example word, example word in Chinese
 """
 import asyncio
 import json
@@ -20,8 +21,8 @@ EN_RATE = "-15%"                    # slower for 5-year-olds
 ZH_RATE = "-5%"
 
 
-def load(name: str):
-    text = (ROOT / "js" / "content" / "data.js").read_text(encoding="utf-8")
+def load(name: str, file: str = "data.js"):
+    text = (ROOT / "js" / "content" / file).read_text(encoding="utf-8")
     m = re.search(rf"const {name} = (.*?);\s*(?:\n//|\nconst|\Z)", text, re.S)
     return json.loads(m.group(1))
 
@@ -44,6 +45,10 @@ def jobs():
     for fx in load("FX"):
         v, r = (EN_VOICE, EN_RATE) if fx["lang"] == "en" else (ZH_VOICE, ZH_RATE)
         yield "fx", fx["id"], fx["text"], v, r
+    for L in load("ALPHABET", "alphabet.js"):
+        yield "let", L["id"], L["say"], EN_VOICE, EN_RATE
+        yield "letw", L["id"], L["word"], EN_VOICE, EN_RATE
+        yield "letz", L["id"], L["zh"], ZH_VOICE, ZH_RATE
 
 
 async def main():

@@ -11,6 +11,8 @@ const LEGACY_KEY = "abc_srs_v1";
 const PROF_MAX = 6;
 const NAME_MAX = 12;
 const srsKeyOf = id => "abc_srs_v1__" + id;
+// 字母页的星星（pages/alphabet.js）：只存本机，每个小朋友一份，不进复习算法也不同步
+const alphaKeyOf = id => "abc_alpha_v1__" + id;
 // 传送链接（account.js）和云同步链接（sync.js）都用的 base64url 编码
 const b64enc = s => btoa(unescape(encodeURIComponent(s))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 const b64dec = c => { c = c.replace(/-/g, "+").replace(/_/g, "/"); while(c.length % 4) c += "="; return decodeURIComponent(escape(atob(c))); };
@@ -110,7 +112,7 @@ function deleteProfile(id, quiet){
   if(!p) return false;
   if(!quiet && typeof syncForget === "function") syncForget(id);
   PROFS.list = PROFS.list.filter(x => x.id !== id);
-  try{ localStorage.removeItem(srsKeyOf(id)); }catch(e){}
+  try{ localStorage.removeItem(srsKeyOf(id)); localStorage.removeItem(alphaKeyOf(id)); }catch(e){}
   if(PROFS.cur === id){
     PROFS.cur = PROFS.list[0] ? PROFS.list[0].id : "";
     saveProfs();
@@ -126,6 +128,8 @@ function rekeyProfile(oldId, newId){
   try{
     const raw = localStorage.getItem(srsKeyOf(oldId));
     if(raw != null){ localStorage.setItem(srsKeyOf(newId), raw); localStorage.removeItem(srsKeyOf(oldId)); }
+    const ar = localStorage.getItem(alphaKeyOf(oldId));
+    if(ar != null){ localStorage.setItem(alphaKeyOf(newId), ar); localStorage.removeItem(alphaKeyOf(oldId)); }
   }catch(e){ return false; }
   p.id = newId;
   if(PROFS.cur === oldId) PROFS.cur = newId;
