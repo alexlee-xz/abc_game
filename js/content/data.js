@@ -39,6 +39,27 @@ const LESSONS = [
       {"id": "programmer", "en": "programmer", "ipa": "ˈproʊɡræmər", "zh": "程序员", "emoji": "🧑‍💻", "sen": "I can be a programmer.", "senZh": "我可以当程序员。"},
       {"id": "astronaut", "en": "astronaut", "ipa": "ˈæstrənɔːt", "zh": "宇航员", "emoji": "🧑‍🚀", "sen": "I can be an astronaut.", "senZh": "我可以当宇航员。"}
     ]
+  },
+  {
+    "id": "unit3",
+    "title": "Family and Love",
+    "zh": "家人与爱",
+    "icon": "❤️",
+    "items": [
+      {"id": "family", "en": "family", "ipa": "ˈfæməli", "zh": "家人", "emoji": "👨‍👩‍👧"},
+      {"id": "hug", "en": "hug", "ipa": "hʌɡ", "zh": "拥抱", "emoji": "🤗"},
+      {"id": "special", "en": "special", "ipa": "ˈspeʃl", "zh": "特别的", "emoji": "🌟"},
+      {"id": "care", "en": "care", "ipa": "ker", "zh": "关心", "emoji": "🫶"},
+      {"id": "home", "en": "home", "ipa": "hoʊm", "zh": "家", "emoji": "🏠"},
+      {"id": "love", "en": "love", "ipa": "lʌv", "zh": "爱", "emoji": "❤️"},
+      {"id": "kind", "en": "kind", "ipa": "kaɪnd", "zh": "善良的", "emoji": "😊"},
+      {"id": "forever", "en": "forever", "ipa": "fərˈevər", "zh": "永远", "emoji": "♾️"},
+      {"id": "s_love", "en": "All we need is love!", "zh": "我们只需要爱！", "emoji": "❤️👨‍👩‍👧", "sentence": true},
+      {"id": "s_ok", "en": "Are you OK?", "zh": "你还好吗？", "emoji": "🤔👍", "sentence": true},
+      {"id": "s_stuck", "en": "We're stuck!", "zh": "我们被困住啦！", "emoji": "😱🕳️", "sentence": true},
+      {"id": "s_carrot", "en": "You can have my last carrot!", "zh": "我最后一根胡萝卜给你吃！", "emoji": "🥕🎁", "sentence": true},
+      {"id": "s_best", "en": "You're the best!", "zh": "你是最棒的！", "emoji": "🏆👍", "sentence": true}
+    ]
   }
 ];
 
@@ -85,7 +106,15 @@ const ACTS = {
   "doctor":       {"en": "Show me a doctor!", "zh": "扮成医生，用听诊器听一听"},
   "nurse":        {"en": "Show me a nurse!", "zh": "扮成护士，打一针"},
   "programmer":   {"en": "Show me a programmer!", "zh": "扮成程序员，敲键盘"},
-  "astronaut":    {"en": "Show me an astronaut!", "zh": "扮成宇航员，飞上太空"}
+  "astronaut":    {"en": "Show me an astronaut!", "zh": "扮成宇航员，飞上太空"},
+  "family":       {"en": "Hug your family!", "zh": "跑过去，和家里人抱一抱"},
+  "hug":          {"en": "Give me a hug!", "zh": "张开双臂，抱一抱"},
+  "special":      {"en": "Show me something special!", "zh": "拿出一样自己觉得最特别的东西"},
+  "care":         {"en": "Take care of the teddy!", "zh": "照顾一下毛绒玩具，给它盖盖被子"},
+  "home":         {"en": "Run home!", "zh": "跑回“家”（沙发或房间的角落）"},
+  "love":         {"en": "Make a heart with your hands!", "zh": "用双手比一个爱心"},
+  "kind":         {"en": "Be kind! Share a toy!", "zh": "把一样玩具分享给别人"},
+  "forever":      {"en": "Best friends forever! High five!", "zh": "和家人击掌，说好永远在一起"}
 };
 
 // 听故事排顺序：unit 里的词都学过（等级≥1）后解锁；lines 是故事的句子 id（按故事顺序）。
@@ -99,7 +128,8 @@ const CONFUSE = {
   "builder": ["mechanic", "firefighter"],
   "firefighter": ["fire station", "hose"], "fire station": ["alarm bell", "hose"],
   "hose": ["pole"], "save": ["cheer"],
-  "dancer": ["musician", "footballer"], "teacher": ["programmer"]
+  "dancer": ["musician", "footballer"], "teacher": ["programmer"],
+  "family": ["home"], "hug": ["love"], "care": ["kind"], "special": ["forever"]
 };
 
 // 家长小任务：每个词在生活里怎么用一用（按词的英文小写）
@@ -122,5 +152,13 @@ const TIPS = {
   "doctor": "用玩具听诊器给家人“看病”：I can be a doctor.",
   "nurse": "给布偶“打针”、贴创可贴：I can be a nurse.",
   "programmer": "看到电脑时，假装敲键盘：I can be a programmer.",
-  "astronaut": "看星星或月亮时说：I can be an astronaut! 假装飞上太空。"
+  "astronaut": "看星星或月亮时说：I can be an astronaut! 假装飞上太空。",
+  "family": "看全家福或和家人在一起时说：Family! 让孩子指着家人说出来。",
+  "hug": "出门、睡前和家人拥抱时说：Hug! 让孩子也说一遍。",
+  "special": "夸孩子的作品或心爱的玩具：It's special! 让孩子说说自己的 special 东西。",
+  "care": "一起照顾毛绒玩具、给花浇水时说：Care! 让孩子说 I care.",
+  "home": "回家开门时说：Home! 让孩子跟着说。",
+  "love": "睡前抱抱孩子说：Love! 让孩子也比个爱心说 love。",
+  "kind": "孩子分享玩具或帮忙时夸他：Kind! You are kind.",
+  "forever": "和孩子拉钩，说：Forever! 比如“爱你到永远”。"
 };

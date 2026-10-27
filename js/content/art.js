@@ -58,6 +58,19 @@ const ART = (function(){
   const bell = () => path("M50 14C36 14 31 28 31 44C31 58 25 62 22 70H78C75 62 69 58 69 44C69 28 64 14 50 14Z", YEL) +
     circ(50, 12, 4, "#f9a825") + circ(50, 78, 6, "#f9a825") + line("M40 28Q38 38 38 48", "#fff59d", 3);
   const win = (x, y, w, h) => rect(x, y, w, h, 2, "#fff59d", 'stroke-width="2.5"');
+  // 爱心（100×100 里画好的一颗）；sm 把一段图缩放、平移后放到别处；star5 是五角星
+  const HEART = "M50 84C14 58 14 22 36 22C44 22 50 30 50 36C50 30 56 22 64 22C86 22 86 58 50 84Z";
+  const heart = (fill, w) => path(HEART, fill, `stroke-width="${w || 3}"`);
+  const sm = (x, y, s, body) => `<g transform="translate(${x} ${y}) scale(${s})">${body}</g>`;
+  const star5 = (cx, cy, R, fill) => {
+    const pts = [];
+    for(let k = 0; k < 10; k++){
+      const r = k % 2 ? R * .45 : R, t = (-90 + 36 * k) * Math.PI / 180;
+      pts.push(`${n(cx + r * Math.cos(t))} ${n(cy + r * Math.sin(t))}`);
+    }
+    return path("M" + pts.join("L") + "Z", fill, 'stroke-width="3"');
+  };
+  const eyes = (x1, x2, y) => circ(x1, y, 2, INK, NS) + circ(x2, y, 2, INK, NS);
 
   const I = {};
 
@@ -186,7 +199,78 @@ const ART = (function(){
     front: circ(50, 27, 19, "#b3e5fc", 'fill-opacity=".5"') + line("M38 17Q41 12 47 11", WHT, 2.5) +
       rect(37, 43, 26, 5, 2.5, GRY) + rect(44, 54, 12, 8, 2, RED, 'stroke-width="2"')});
 
-  const wrap = body => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img">${body}</svg>`;
+  /* ---------- 第三单元：家人与爱 ---------- */
+  // 两个大人和一个小朋友
+  I.family = circ(28, 30, 11, SKIN) + path("M17 28Q17 15 28 15Q39 15 39 28Q33 22 28 22Q22 22 17 28Z", "#6d4c41") +
+    rect(17, 42, 22, 36, 8, BLUE) + eyes(24, 32, 31) + path("M24 36Q28 40 32 36", "none", 'stroke-width="2"') +
+    circ(72, 30, 11, SKIN) + path("M61 32Q60 15 72 15Q84 15 83 32Q78 22 72 22Q66 22 61 32Z", "#ffb74d") +
+    rect(61, 42, 22, 36, 8, "#f06292") + eyes(68, 76, 31) + path("M68 36Q72 40 76 36", "none", 'stroke-width="2"') +
+    rect(40, 66, 20, 22, 7, YEL) + circ(50, 56, 11, SKIN) + path("M39 54Q40 43 50 43Q60 43 61 54Q55 49 50 49Q45 49 39 54Z", "#6d4c41") +
+    eyes(46, 54, 57) + path("M46 61Q50 65 54 61", "none", 'stroke-width="2"') +
+    sm(41, 1, .18, heart(RED, 7)) + line("M12 90H88", GRN, 3);
+
+  I.hug = sm(-4, 12, .8, kid({body: BLUE, legs: "#5c6bc0", armL: [37, 48, 29, 62], armR: [63, 48, 88, 50]})) +
+    sm(24, 12, .8, kid({body: "#f06292", legs: "#7e57c2", armL: [37, 48, 12, 50], armR: [63, 48, 71, 62]})) +
+    sm(40, 2, .2, heart(RED, 7)) + sm(14, 6, .12, heart("#f48fb1", 9)) + sm(74, 6, .12, heart("#f48fb1", 9));
+
+  // 彩虹鱼：身上有闪闪发亮的鳞片，是一条特别的鱼
+  I.special = path("M70 50L94 30Q90 50 94 70Z", "#ab47bc") +
+    path("M34 32Q46 12 62 34Z", "#ab47bc") + path("M38 68Q48 86 62 66Z", "#ec407a") +
+    ell(44, 50, 32, 22, "#29b6f6") + path("M24 58Q44 72 70 54Q58 66 44 70Q32 70 24 58Z", "#81d4fa", NS) +
+    line("M58 33Q66 50 58 67", "#ffd54f", 4) + line("M68 38Q73 50 68 62", "#ec407a", 4) +
+    star(42, 42, 5, "#e0f7fa") + star(50, 55, 4.5, "#e0f7fa") + star(36, 56, 3.5, "#e0f7fa") + star(30, 44, 3, "#e0f7fa") +
+    circ(24, 46, 5, WHT, 'stroke-width="2.5"') + circ(23, 46, 2.2, INK, NS) + path("M14 54Q18 57 21 55", "none", 'stroke-width="2.5"') +
+    star(14, 14, 6, YEL) + star(86, 12, 5, "#80deea") + star(88, 86, 5, "#ce93d8") + star(12, 84, 4, YEL) +
+    circ(8, 30, 2.5, "#b3e5fc") + circ(14, 24, 1.8, "#b3e5fc");
+
+  // 给小熊贴创可贴的小朋友
+  I.care = sm(-14, 4, .88, kid({body: "#4db6ac", legs: "#455a64", armR: [63, 48, 84, 56]})) +
+    circ(70, 52, 5, "#a1887f") + circ(88, 52, 5, "#a1887f") + ell(79, 82, 12, 11, "#bc8f6b") + circ(79, 61, 12, "#bc8f6b") +
+    ell(79, 65, 5, 4, "#ffe0b2", 'stroke-width="2"') + circ(79, 64, 1.8, INK, NS) + eyes(74.5, 83.5, 58) +
+    `<g transform="rotate(-25 79 50)">` + rect(70, 47, 18, 7, 2, "#fff3c4", 'stroke-width="2.5"') + `</g>` +
+    sm(66, 22, .2, heart(RED, 7)) + sm(10, 6, .16, heart("#f48fb1", 9));
+
+  I.home = rect(68, 18, 12, 20, 0, BRN) + rect(16, 46, 68, 42, 3, "#ffcc80") + path("M8 50L50 12L92 50Z", RED) +
+    circ(50, 36, 6, "#b3e5fc", 'stroke-width="2.5"') + rect(42, 62, 16, 26, 2, BRN) + circ(54, 76, 1.8, YEL, NS) +
+    win(22, 58, 13, 13) + win(65, 58, 13, 13) + line("M4 90H96", GRN, 4);
+
+  I.love = heart(RED, 4) + line("M30 40Q32 32 39 30", "#ffcdd2", 4) +
+    sm(70, 4, .28, heart("#f48fb1", 8)) + sm(4, 8, .22, heart("#f48fb1", 9));
+
+  I.kind = kid({body: "#fff176", legs: "#5c6bc0", armL: [37, 48, 34, 60], armR: [63, 48, 66, 60],
+    back: sm(70, 4, .2, heart("#f48fb1", 9)) + sm(8, 8, .16, heart("#f48fb1", 9)),
+    front: sm(35, 44, .3, heart(RED, 7))});
+
+  I.forever = tube("M50 50C40 28 10 28 10 50C10 72 40 72 50 50C60 28 90 28 90 50C90 72 60 72 50 50Z", "#ef5350", 8) +
+    sm(40, 4, .2, heart(RED, 7)) + star(12, 86, 5, YEL) + star(88, 86, 5, YEL) + star(50, 90, 4, "#80deea");
+
+  // 五句话：只需要爱 / 你还好吗 / 我们被困住了 / 最后一根胡萝卜 / 你最棒
+  I.s_love = heart(RED, 4) +
+    circ(36, 46, 8, SKIN) + eyes(33, 39, 45) + circ(64, 46, 8, SKIN) + eyes(61, 67, 45) +
+    circ(50, 62, 7, SKIN) + eyes(47.5, 52.5, 61) +
+    sm(72, 2, .22, heart("#f48fb1", 9)) + sm(6, 4, .2, heart("#f48fb1", 9));
+
+  I.s_ok = ell(80, 20, 16, 13, WHT) + path("M70 30L62 40L76 33Z", WHT) +
+    line("M74 16Q74 11 80 11Q86 11 86 16Q86 20 80 22V25", INK, 2.5) + circ(80, 29, 1.4, INK, NS) +
+    sm(-6, 10, .88, kid({body: "#66bb6a", legs: "#455a64", arms: "out"}));
+
+  I.s_stuck = kid({body: "#ff8a65", arms: "up", mouth: "open", noLegs: true}) +
+    path("M0 62Q12 55 25 62T50 62T75 62T100 62V100H0Z", BRN) + circ(16, 78, 3, "#6d4c41", NS) + circ(80, 84, 4, "#6d4c41", NS) + circ(60, 90, 2.5, "#6d4c41", NS) +
+    line("M12 12V26", RED, 4) + circ(12, 33, 2.5, RED, NS) + line("M88 12V26", RED, 4) + circ(88, 33, 2.5, RED, NS);
+
+  I.s_carrot = ell(50, 90, 38, 6, "#eceff1") +
+    `<g transform="rotate(-25 50 54)">` +
+    path("M50 36Q38 14 34 6Q48 10 50 24Q52 10 66 6Q62 14 50 36Z", GRN) +
+    path("M38 36H62Q66 36 64 44L53 86Q50 92 47 86L36 44Q34 36 38 36Z", ORG) +
+    line("M40 50H49M51 64H59M44 76H51", "#e65100", 2.5) + `</g>` +
+    sm(72, 6, .24, heart(RED, 8));
+
+  I.s_best = path("M30 14H70V38Q70 58 50 60Q30 58 30 38Z", YEL) +
+    path("M30 20H18Q16 38 32 42", "none", `stroke="${ORG}" stroke-width="5"`) + path("M70 20H82Q84 38 68 42", "none", `stroke="${ORG}" stroke-width="5"`) +
+    rect(46, 60, 8, 14, 0, YEL) + rect(34, 74, 32, 10, 3, "#fbc02d") + star5(50, 35, 11, "#fff59d") +
+    star(12, 12, 6, "#ff8a80") + star(88, 14, 6, "#80deea") + star(90, 60, 4, YEL) + star(10, 62, 4, YEL);
+
+  const wrap = body => `<svg xmlns=""http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img">${body}</svg>`;
   const out = {};
   Object.keys(I).forEach(k => { out[k] = wrap(I[k]); });
   return out;

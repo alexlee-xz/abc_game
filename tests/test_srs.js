@@ -131,8 +131,8 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
 
 (async () => {
   const pool = ev(`questPool()`);
-  assert.strictEqual(pool.length, 19, "pool size " + pool.length);
-  assert.strictEqual(new Set(pool.map(p => p.en)).size, 19);
+  assert.strictEqual(pool.length, 27, "pool size " + pool.length);
+  assert.strictEqual(new Set(pool.map(p => p.en)).size, 27);
   assert(pool.find(p => p.en === "firefighter").sen, "firefighter should keep sentence version");
 
   /* ---------- Day 0 (standard level): 3 new words, each confirmed twice ---------- */
@@ -539,11 +539,11 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
       const teach = ev(`Q.steps.filter(s => s.type === "teach").length`);
       const qs = ev(`Q.steps.filter(s => s.type === "quiz").length`);
       taught += teach;
-      assert.strictEqual(teach, Math.min(n, 19 - (taught - teach)), `n=${n} day ${day}: new words taught`);
+      assert.strictEqual(teach, Math.min(n, 27 - (taught - teach)), `n=${n} day ${day}: new words taught`);
       assert(qs >= Math.min(10, 2 * teach + learned), `n=${n} day ${day}: only ${qs} questions`);
       assert(ev(`SRS.daily`).newCount <= n, "new words over cap");
     }
-    assert.strictEqual(taught, Math.min(19, n * 8), `n=${n}: total taught`);
+    assert.strictEqual(taught, Math.min(27, n * 8), `n=${n}: total taught`);
   }
   // after today's new words are used up, "another round" only reviews (no extra new words)
   reset(); ev(`SRS.cfg.newPerDay = 2`);
@@ -737,7 +737,7 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
   assert.strictEqual(JSON.stringify(reviewDays.slice(0, 6)), JSON.stringify([1, 2, 4, 7, 15, 30]), "schedule: " + reviewDays);
   assert.strictEqual(ev(`SRS.words["${first}"].box`), 5);
   assert.strictEqual(ev(`SRS.streak`), 46);
-  assert.strictEqual(Object.keys(ev(`SRS.words`)).length, 19, "all words introduced");
+  assert.strictEqual(Object.keys(ev(`SRS.words`)).length, 27, "all words introduced");
   assert(ev(`SRS.log.length`) <= 400 && ev(`SRS.log.length`) > 100, "log capped: " + ev(`SRS.log.length`));
   // all-correct, fast play never counts as forgetting
   assert.strictEqual(ev(`questPool().reduce((n, it) => n + SRS.words[wkey(it)].fg, 0)`), 0);
@@ -1056,7 +1056,7 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
     const link = ev(`transferLink()`);
     assert(link.startsWith("https://alexlee-xz.github.io/abc_game/#r="), "link shape: " + link.slice(0, 60));
     assert(/^[\x21-\x7e]+$/.test(link), "link is plain ASCII (safe to paste anywhere)");
-    assert(link.length < 5000, "19 learned words fit in a short link: " + link.length);
+    assert(link.length < 5000, "27 learned words fit in a short link: " + link.length);
     assert(link.length < ev(`recordText(undefined, false)`).length, "shorter than the plain text export");
     // round trip onto a "new phone" (a different browser has an empty store)
     ev(`deleteProfile(PROFS.cur)`); assert.strictEqual(profs().list.length, 0);
@@ -1092,12 +1092,12 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
     // opening the link: a confirm page first, nothing is changed until you agree
     wipe(); setHash("#r=" + codeOnly); ev(`boot()`);
     let h = ev(`app.innerHTML`);
-    assert(/收到学习记录/.test(h) && /小明😀/.test(h) && /已学 19 个词/.test(h) && /p-hash-import/.test(h) && /p-hash-cancel/.test(h) && /还没有这个名字/.test(h), "confirm page");
+    assert(/收到学习记录/.test(h) && /小明😀/.test(h) && /已学 27 个词/.test(h) && /p-hash-import/.test(h) && /p-hash-cancel/.test(h) && /还没有这个名字/.test(h), "confirm page");
     assert.strictEqual(profs().list.length, 0, "nothing imported yet"); assert.strictEqual(ev(`location.hash`), "", "link is removed from the address bar");
     ctx.__alerts.length = 0;
     await click("p-hash-import");
     assert.strictEqual(profs().list.length, 1); assert.strictEqual(ev(`curProfile().name`), "小明😀"); assert(/导入成功/.test(ctx.__alerts[0]));
-    assert(/连续/.test(ev(`app.innerHTML`)), "lands on the home page"); assert.strictEqual(Object.keys(ev(`SRS.words`)).length, 19);
+    assert(/连续/.test(ev(`app.innerHTML`)), "lands on the home page"); assert.strictEqual(Object.keys(ev(`SRS.words`)).length, 27);
     ev(`boot()`); assert(!/收到学习记录/.test(ev(`app.innerHTML`)), "handled once per page load");
     // existing child with the same name: warns, then overwrites WITHOUT a second confirm
     seed("zzz", {box: 1}); ev(`saveSRS()`); setHash("#r=" + codeOnly); ev(`boot()`);
@@ -1143,7 +1143,7 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
     const t = today(), pk = k => ev(`questPool().find(p => wkey(p) === ${JSON.stringify(k)})`);
     let w = ev(`weeklyText()`);
     assert(/^【Lily 的英语小结】\d+\/\d+ ～ \d+\/\d+/.test(w), "title with name and date range: " + w.split("\n")[0]);
-    assert(/打卡 0\/7 天/.test(w) && /本周没有学新词/.test(w) && /本周还没有答题记录/.test(w) && /小花园：种下 0\/19 棵/.test(w), "empty week reads sensibly");
+    assert(/打卡 0\/7 天/.test(w) && /本周没有学新词/.test(w) && /本周还没有答题记录/.test(w) && /小花园：种下 0\/27 棵/.test(w), "empty week reads sensibly");
     assert(/本周打卡 0 天/.test(w), "advice for no check-ins");
     // a busy week
     ev(`SRS.doneDays = [${t}, ${t - 2}, ${t - 10}]; SRS.streak = 1; SRS.lastDone = ${t}; SRS.story.fire = 3;`);
@@ -1163,7 +1163,7 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
     assert(w.indexOf("vet " + zh("vet") + "（错") < w.indexOf("dancer " + zh("dancer") + "（错"), "most missed first");
     assert(w.includes("听故事排顺序：累计完成 3 次"));
     assert(w.includes("• vet：" + ev(`tipOf(questPool().find(p => wkey(p) === "vet"))`)), "a real-life tip for a weak word");
-    assert(w.includes("种下 5/19 棵") || /种下 \d+\/19 棵/.test(w));
+    assert(w.includes("种下 5/27 棵") || /种下 \d+\/27 棵/.test(w));
     assert(/📌 本周打卡 2 天/.test(w), "advice mentions low check-ins");
     assert(!/hose/.test(w), "a word with no misses and not new is not listed");
     // advice rules
