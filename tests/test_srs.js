@@ -75,6 +75,7 @@ ev(`LESSONS`).forEach(l => l.items.forEach(it => {
   if(it.sen) files.push(`sen2/${it.id}`);
   files.forEach(f => { if(!fs.existsSync(path.join(root, "audio", f + ".mp3"))) missing.push(f); });
 }));
+ev(`STORY_LINES`).forEach(it => { if(!fs.existsSync(path.join(root, "audio", "en", it.id + ".mp3"))) missing.push("en/" + it.id); });
 Object.keys(ev(`ACTS`)).forEach(id => { if(!fs.existsSync(path.join(root, "audio", "act", id + ".mp3"))) missing.push("act/" + id); });
 ev(`FX`).forEach(f => { if(!fs.existsSync(path.join(root, "audio", "fx", f.id + ".mp3"))) missing.push("fx/" + f.id); });
 assert.strictEqual(missing.length, 0, "missing audio: " + missing.join(","));
@@ -420,19 +421,23 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
     // every word has a command
     pool.forEach(p => assert(ev(`ACTS[${JSON.stringify(p.id)}]`), "ACTS entry for " + p.en));
 
-    // --- story: locked until the unit's words are learned ---
+    // --- story: each story unlocks as soon as the words it needs are learned ---
     reset(); ev(`S = null`);
     let hh = ev(`homeQuestHtml()`);
-    assert(/\ud83d\udd12/.test(hh) && /0\/7/.test(hh) && !/data-act="story"/.test(hh), "story locked at first");
+    assert(/\ud83d\udd12/.test(hh) && !/data-act="story"/.test(hh), "stories locked at first");
+    assert(/mechanic/.test(hh) && /0\/1/.test(hh), "the lock shows the story that is closest to unlocking");
+    assert.strictEqual((hh.match(/\ud83d\udd12/g) || []).length, 1, "only one lock is shown");
     await click("story", 0);
     assert.strictEqual(ev(`S`), null, "locked story does not start");
     ["fire station", "alarm bell", "firefighter", "hose", "save", "cheer"].forEach(k => seed(k, {box: 1}));
-    assert(/6\/7/.test(ev(`homeQuestHtml()`)));
+    assert.strictEqual(ev(`storyProgress(STORIES[0]).got`), 6); assert.strictEqual(ev(`storyProgress(STORIES[0]).need`), 7);
+    hh = ev(`homeQuestHtml()`);
+    assert(/data-act="story" data-i="2"/.test(hh) && !/data-act="story" data-i="0"/.test(hh), "the hose story opens before the whole unit is learned");
     seed("pole", {box: 0});
-    assert(/6\/7/.test(ev(`homeQuestHtml()`)), "level 0 does not count");
+    assert.strictEqual(ev(`storyProgress(STORIES[0]).got`), 6, "level 0 does not count");
     seed("pole", {box: 1});
     hh = ev(`homeQuestHtml()`);
-    assert(/data-act="story" data-i="0"/.test(hh) && !/\ud83d\udd12/.test(hh), "story unlocked");
+    assert(/data-act="story" data-i="0"/.test(hh) && /data-act="story" data-i="1"/.test(hh), "unit story and the slide story unlocked");
     ev(`played.length = 0`);
     await click("story", 0);
     let st0 = J(ev(`S`));
@@ -470,6 +475,46 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
     ev(`SRS = normSRS({words: {}, story: "junk"})`); assert.strictEqual(JSON.stringify(ev(`SRS.story`)), "{}");
     // story data sanity
     ev(`STORIES`).forEach(s => s.lines.forEach(id => assert(ev(`itemById(${JSON.stringify(id)})`), "story line " + id)));
+    {
+      const stories = J(ev(`STORIES`)), sl = J(ev(`STORY_LINES`)), ids = sl.map(x => x.id);
+      assert.strictEqual(new Set(ids).size, ids.length, "STORY_LINES ids are unique");
+      const lessonIds = new Set(ev(`LESSONS`).flatMap(l => l.items.map(i => i.id)));
+      ids.forEach(id => assert(!lessonIds.has(id), "story line id clashes with a lesson item: " + id));
+      assert.strictEqual(new Set(stories.map(s => s.id)).size, stories.length, "story ids are unique");
+      stories.forEach(s => {
+        assert(s.lines.length >= 3 && s.lines.length <= 6, s.id + ": 3-6 lines");
+        assert.strictEqual(new Set(s.lines).size, s.lines.length, s.id + ": no repeated line");
+        const pics = s.lines.map(id => J(ev(`itemById(${JSON.stringify(id)})`)).emoji);
+        assert.strictEqual(new Set(pics).size, pics.length, s.id + ": every picture is different");
+        (s.need || []).forEach(id => { const it = ev(`itemById(${JSON.stringify(id)})`); assert(it && !it.sentence && it.game !== false, s.id + ": need is a real word: " + id); });
+        assert(s.need ? s.need.length >= 1 : !!ev(`LESSONS.find(l => l.id === ${JSON.stringify(s.unit)})`), s.id + ": has need or unit");
+      });
+    }
+    // more learned words => more stories; the home page shows at most 3, least-played first
+    reset(); ev(`S = null`);
+    ev(`LESSONS`).forEach(l => l.items.filter(i => !i.sentence && i.game !== false).forEach(i => seed(i.en.toLowerCase(), {box: 1})));
+    const nStories = ev(`STORIES.length`);
+    assert.strictEqual(ev(`STORIES.filter(st => storyProgress(st).open).length`), nStories, "all stories open once everything is learned");
+    hh = ev(`homeQuestHtml()`);
+    assert.strictEqual((hh.match(/data-act="story"/g) || []).length, 3, "at most 3 story buttons");
+    assert(!/\ud83d\udd12/.test(hh) && new RegExp("\u8fd8\u6709 " + (nStories - 3) + " \u4e2a\u6545\u4e8b").test(hh), "no lock left, and the rest is counted");
+    ev(`SRS.story.fire = 1; SRS.story.slide = 2; SRS.story.hose = 1;`);
+    hh = ev(`homeQuestHtml()`);
+    assert(/data-i="3"/.test(hh) && /data-i="4"/.test(hh) && /data-i="5"/.test(hh) && !/data-act="story" data-i="0"/.test(hh), "played stories move to the back");
+    // play a 4-line story that needs only two words
+    ev(`played.length = 0`);
+    await click("story", 3);
+    assert.strictEqual(ev(`S.lines.length`), 4);
+    assert.strictEqual(flatPlayed().filter(u => /^audio\/en\/s_/.test(u)).join(), "audio/en/s_sick.mp3,audio/en/s_doc.mp3,audio/en/s_shot.mp3,audio/en/s_better.mp3", "doctor story is played in order");
+    for(let i = 0; i < 4; i++) await click("st-pick", i);
+    assert(/\u6545\u4e8b\u8bb2\u5b8c\u5566/.test(ev(`app.innerHTML`)), "doctor story finished");
+    assert.strictEqual(ev(`SRS.story.doctor`), 1);
+    // learned only the words of one small story: just that one is open
+    reset(); ev(`S = null`);
+    ["mechanic"].forEach(k => seed(k, {box: 1}));
+    assert.deepStrictEqual(J(ev(`STORIES.filter(st => storyProgress(st).open).map(st => st.id)`)), ["car"]);
+    hh = ev(`homeQuestHtml()`);
+    assert(/data-act="story" data-i="5"/.test(hh) && /\ud83d\udd12/.test(hh), "car story open, next lock shown");
 
     // --- learning-mode toggles on the parent page ---
     reset(); ev(`parentPage("set")`);

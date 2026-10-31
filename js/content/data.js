@@ -117,9 +117,68 @@ const ACTS = {
   "forever":      {"en": "Best friends forever! High five!", "zh": "和家人击掌，说好永远在一起"}
 };
 
-// 听故事排顺序：unit 里的词都学过（等级≥1）后解锁；lines 是故事的句子 id（按故事顺序）。
+// 故事专用句子（只用在“听故事排顺序”里，不进单元练习、不进复习）。语音：audio/en/<id>.mp3（tools/gen_audio.py 生成）。
+const STORY_LINES = [
+  {"id": "s_slide", "en": "Slide down the pole!", "emoji": "⬇️🧑‍🚒"},
+  {"id": "s_truck", "en": "Jump on the fire truck!", "emoji": "🚒🧑‍🚒"},
+  {"id": "s_go", "en": "Off we go!", "emoji": "💨🛣️"},
+  {"id": "s_hold", "en": "Hold the hose!", "emoji": "🧑‍🚒🚿"},
+  {"id": "s_spray", "en": "Water on the fire!", "emoji": "💦🔥"},
+  {"id": "s_catsave", "en": "We save the cat!", "emoji": "🐱🛟"},
+  {"id": "s_hooray", "en": "Hooray!", "emoji": "🙌🎉"},
+  {"id": "s_sick", "en": "I feel sick.", "emoji": "🤒🛌"},
+  {"id": "s_doc", "en": "The doctor checks me.", "emoji": "👨‍⚕️🩺"},
+  {"id": "s_shot", "en": "The nurse gives me a shot.", "emoji": "👩‍⚕️💉"},
+  {"id": "s_better", "en": "I feel better!", "emoji": "😄💪"},
+  {"id": "s_music", "en": "The musician plays.", "emoji": "🎻🎶"},
+  {"id": "s_dance", "en": "The dancer dances.", "emoji": "💃✨"},
+  {"id": "s_clap", "en": "Everybody claps!", "emoji": "👏🎊"},
+  {"id": "s_thanks", "en": "Thank you!", "emoji": "🙇💐"},
+  {"id": "s_broken", "en": "The car is broken.", "emoji": "🚗💥"},
+  {"id": "s_mech", "en": "The mechanic comes.", "emoji": "🧑‍🔧🧰"},
+  {"id": "s_fix", "en": "Fix, fix, fix!", "emoji": "🔧🔩"},
+  {"id": "s_vroom", "en": "Vroom! It works!", "emoji": "💨🚙"},
+  {"id": "s_psick", "en": "The puppy is sick.", "emoji": "🐶🤒"},
+  {"id": "s_vet", "en": "The vet checks him.", "emoji": "🩺👀"},
+  {"id": "s_pill", "en": "He takes medicine.", "emoji": "💊🥄"},
+  {"id": "s_phappy", "en": "The puppy is happy!", "emoji": "🐶💖"},
+  {"id": "s_helmet", "en": "Put on the helmet.", "emoji": "🧑‍🚀⛑️"},
+  {"id": "s_count", "en": "Three, two, one!", "emoji": "3️⃣2️⃣1️⃣"},
+  {"id": "s_blast", "en": "Blast off!", "emoji": "🚀🔥"},
+  {"id": "s_moon", "en": "Look at the moon!", "emoji": "🌙👀"},
+  {"id": "s_run", "en": "Run, run, run!", "emoji": "🏃💨"},
+  {"id": "s_kick", "en": "Kick the ball!", "emoji": "🦵⚽"},
+  {"id": "s_goal", "en": "Goal!", "emoji": "🥅🎉"},
+  {"id": "s_win", "en": "We win!", "emoji": "🏆🙌"},
+  {"id": "s_runhome", "en": "I run home.", "emoji": "🏃🏠"},
+  {"id": "s_see", "en": "I see my family.", "emoji": "👀👨‍👩‍👧"},
+  {"id": "s_hug", "en": "We hug.", "emoji": "🤗🫂"},
+  {"id": "s_loveu", "en": "I love you!", "emoji": "💌❤️"},
+  {"id": "s_sadted", "en": "The teddy is sad.", "emoji": "🧸😢"},
+  {"id": "s_care", "en": "I take care of him.", "emoji": "🩹🫶"},
+  {"id": "s_share", "en": "I share my toy.", "emoji": "🚗🎁"},
+  {"id": "s_smile", "en": "The teddy smiles!", "emoji": "🧸😊"},
+  {"id": "s_friends", "en": "We are best friends.", "emoji": "👫🌈"},
+  {"id": "s_you", "en": "You are special.", "emoji": "🌟🫵"},
+  {"id": "s_love2", "en": "I love you.", "emoji": "❤️😍"},
+  {"id": "s_ever", "en": "Friends forever!", "emoji": "♾️🤝"}
+];
+
+// 听故事排顺序：need 里的词（单词 id）都学过（等级≥1）后解锁；没写 need 就是 unit 里的全部词。lines 是故事的句子 id（按故事顺序，可以用 LESSONS 里的句子，也可以用 STORY_LINES）。
+// 每学会几个新词，就会有新的故事解锁；想加故事：先在 STORY_LINES 里加句子，再在这里加一条，最后跑 tools/gen_audio.py 生成语音。
 const STORIES = [
-  {"id": "fire", "title": "消防员出动啦", "unit": "unit1", "lines": ["s_alarm", "s_reach", "s_out"]}
+  {"id": "fire", "title": "消防员出动啦", "unit": "unit1", "lines": ["s_alarm", "s_reach", "s_out"]},
+  {"id": "slide", "title": "滑杆出发", "need": ["alarm_bell", "pole", "fire_station"], "lines": ["s_alarm", "s_slide", "s_truck", "s_go"]},
+  {"id": "hose", "title": "水管灭火", "need": ["hose", "save", "cheer"], "lines": ["s_hold", "s_spray", "s_catsave", "s_hooray"]},
+  {"id": "doctor", "title": "去看医生", "need": ["doctor", "nurse"], "lines": ["s_sick", "s_doc", "s_shot", "s_better"]},
+  {"id": "show", "title": "舞台表演", "need": ["musician", "dancer"], "lines": ["s_music", "s_dance", "s_clap", "s_thanks"]},
+  {"id": "car", "title": "修好小汽车", "need": ["mechanic"], "lines": ["s_broken", "s_mech", "s_fix", "s_vroom"]},
+  {"id": "puppy", "title": "小狗生病了", "need": ["vet"], "lines": ["s_psick", "s_vet", "s_pill", "s_phappy"]},
+  {"id": "space", "title": "飞向太空", "need": ["astronaut"], "lines": ["s_helmet", "s_count", "s_blast", "s_moon"]},
+  {"id": "goal", "title": "足球赛", "need": ["footballer"], "lines": ["s_run", "s_kick", "s_goal", "s_win"]},
+  {"id": "hug", "title": "回家抱一抱", "need": ["home", "family", "hug"], "lines": ["s_runhome", "s_see", "s_hug", "s_loveu"]},
+  {"id": "teddy", "title": "难过的小熊", "need": ["care", "kind"], "lines": ["s_sadted", "s_care", "s_share", "s_smile"]},
+  {"id": "friends", "title": "永远的朋友", "need": ["special", "love", "forever"], "lines": ["s_friends", "s_you", "s_love2", "s_ever"]}
 ];
 
 // 容易混淆的词（按词的英文小写）。词长到 🌿 以上、改成 4 选 1 时，干扰项优先从这里挑。双向生效，写一边就行。

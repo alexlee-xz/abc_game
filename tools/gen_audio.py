@@ -49,6 +49,8 @@ def jobs():
                     yield "sen2", it["id"], it["sen"], EN2_VOICE, EN_RATE
     for id_, a in load("ACTS").items():
         yield "act", id_, a["en"], EN_VOICE, EN_RATE
+    for it in load("STORY_LINES"):      # story-only sentences: English voice only (the story page never plays Chinese)
+        yield "en", it["id"], it["en"], EN_VOICE, EN_RATE
     for fx in load("FX"):
         v, r = (EN_VOICE, EN_RATE) if fx["lang"] == "en" else (ZH_VOICE, ZH_RATE)
         yield "fx", fx["id"], fx["text"], v, r

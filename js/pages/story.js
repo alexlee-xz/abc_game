@@ -2,22 +2,36 @@
    依赖 core/srs.js、audio/play.js、app.js 里的 app, session。 */
 
 /* ---------- 听故事，排顺序 ----------
-   学会一个单元的词（等级≥ 1）后解锁：播一遍由几句话组成的小故事，孩子把图片按故事的顺序一张一张点出来。
+   学会一个故事要用的词（等级≥ 1）后解锁：播一遍由几句话组成的小故事，孩子把图片按故事的顺序一张一张点出来。
+   每个故事只看自己要用的那几个词（data.js 的 STORIES[].need；没写就看整个单元），所以每学会几个词就会有新故事解锁。
    不计入复习计划，只记完成次数。 */
-const itemById = id => { for(const l of LESSONS){ const it = l.items.find(x => x.id === id); if(it) return it; } return null; };
+const itemById = id => {
+  for(const l of LESSONS){ const it = l.items.find(x => x.id === id); if(it) return it; }
+  return (typeof STORY_LINES !== "undefined" ? STORY_LINES : []).find(x => x.id === id) || null;
+};
 function storyProgress(st){
   const lesson = LESSONS.find(x => x.id === st.unit);
-  const keys = [...new Set((lesson ? lesson.items : []).filter(i => !i.sentence && i.game !== false).map(wkey))];
+  const src = st.need ? st.need.map(itemById) : (lesson ? lesson.items : []);
+  const words = src.filter(i => i && !i.sentence && i.game !== false);
+  const keys = [...new Set(words.map(wkey))];
   const got = keys.filter(k => SRS.words[k] && SRS.words[k].box >= 1).length;
-  return {got, need: keys.length, open: keys.length > 0 && got >= keys.length, lesson};
+  return {got, need: keys.length, open: keys.length > 0 && got >= keys.length, lesson, names: [...new Set(words.map(w => w.en))]};
 }
+// 首页最多摆几个能玩的故事：完成次数少的排前面，所以新解锁的故事总在最上面，玩过的往后排
+const STORY_SHOW = 3;
 function storyHtml(){
-  return storyList().map((st, i) => {
-    const p = storyProgress(st), n = SRS.story[st.id] || 0;
-    return p.open
-      ? `<button class="big blue" data-act="story" data-i="${i}">📖 听故事，排顺序<small>${st.title}${n ? ` · 已完成 ${n} 次` : ""}</small></button>`
-      : `<div class="big locked">🔒 听故事，排顺序<small>学会“${p.lesson ? p.lesson.zh : ""}”单元的词后解锁 · ${p.got}/${p.need}</small></div>`;
-  }).join("");
+  const all = storyList().map((st, i) => ({st, i, p: storyProgress(st), n: SRS.story[st.id] || 0}));
+  const open = all.filter(x => x.p.open).sort((a, b) => a.n - b.n || a.i - b.i);
+  // 还没解锁的只露出最快能解锁的那一个（差的词最少），免得首页被一排锁占满
+  const lock = all.filter(x => !x.p.open && x.p.need > 0).sort((a, b) => (a.p.need - a.p.got) - (b.p.need - b.p.got) || a.i - b.i)[0];
+  const btn = x => `<button class="big blue" data-act="story" data-i="${x.i}">📖 听故事，排顺序<small>${x.st.title}${x.n ? ` · 已完成 ${x.n} 次` : ""}</small></button>`;
+  let h = open.slice(0, STORY_SHOW).map(btn).join("");
+  if(open.length > STORY_SHOW) h += `<div class="chips"><span class="chip">📖 还有 ${open.length - STORY_SHOW} 个故事，玩过的会往后排</span></div>`;
+  if(lock){
+    const need = lock.p.lesson && !lock.st.need ? `学会“${lock.p.lesson.zh}”单元的词后解锁` : `学会 ${lock.p.names.join("、")} 后解锁`;
+    h += `<div class="big locked">🔒 听故事，排顺序<small>${need} · ${lock.p.got}/${lock.p.need}</small></div>`;
+  }
+  return h;
 }
 let S = null;
 const NUMS = ["①", "②", "③", "④", "⑤", "⑥"];
@@ -36,7 +50,7 @@ function storyStart(idx){
     <h2>📖 ${st.title}</h2>
     <button class="speaker" data-act="st-play">🔊</button>
     <div class="fb" id="fb">按故事的顺序，一张一张点图片</div>
-    <div class="choices w story">
+    <div class="choices ${lines.length === 4 ? "w4" : "w"} story">
       ${order.map(i => `
         <div class="card" data-act="st-pick" data-i="${i}"><div class="badge"></div><div class="emoji">${lines[i].emoji}</div></div>`).join("")}
     </div>`;
