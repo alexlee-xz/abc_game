@@ -51,7 +51,7 @@ function basicsHtml(){
   const t = alphaTotals();
   return `
     <div class="sec-title">🔤 打基础</div>
-    <button class="big blue" data-act="alpha">🔤 字母 A–Z<small>认识 ${t.letters}/${ALPHABET.length} 个 · ⭐ ${t.stars}/${t.max}</small></button>${typeof ipaEntryHtml === "function" ? ipaEntryHtml() : ""}`;
+    <button class="big base" data-act="alpha">🔤 字母 A–Z<small>认识 ${t.letters}/${ALPHABET.length} 个 · ⭐ ${t.stars}/${t.max}</small></button>${typeof ipaEntryHtml === "function" ? ipaEntryHtml() : ""}`;
 }
 
 /* ---------- 字母表 ---------- */
@@ -159,7 +159,7 @@ function alphaFinish(){
     <div class="stars">${"⭐".repeat(AL.stars) || "🌟"}</div>
     <div class="sub">一次就答对 ${AL.stars} / ${AL.rounds.length} 个<br>认识 ${t.letters}/${ALPHABET.length} 个字母 · ⭐ ${t.stars}/${t.max}</div>
     <button class="big blue" data-act="al-game">🔁 再玩一次</button>
-    <button class="big green" data-act="alpha">🔤 看字母表</button>
+    <button class="big base" data-act="alpha">🔤 看字母表</button>
     <button class="big" data-act="home">🏠 回到首页</button>`;
   playSeq([fx("fx_done_zh")]);
 }

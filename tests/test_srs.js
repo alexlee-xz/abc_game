@@ -437,7 +437,8 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
     assert.strictEqual(ev(`storyProgress(STORIES[0]).got`), 6, "level 0 does not count");
     seed("pole", {box: 1});
     hh = ev(`homeQuestHtml()`);
-    assert(/data-act="story" data-i="0"/.test(hh) && /data-act="story" data-i="1"/.test(hh), "unit story and the slide story unlocked");
+    assert(/data-act="story" data-i="0"/.test(hh) && (hh.match(/data-act="story"/g) || []).length === 1, "one story button: the least-played one");
+    assert(/\u5df2\u89e3\u9501 3\/\d+/.test(hh) && !/\ud83d\udd12/.test(hh), "shows how many stories are unlocked, no lock while one is playable");
     ev(`played.length = 0`);
     await click("story", 0);
     let st0 = J(ev(`S`));
@@ -455,6 +456,11 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
     assert.strictEqual(ev(`S.next`), 2); assert(!/\u6545\u4e8b\u8bb2\u5b8c\u5566/.test(ev(`app.innerHTML`)));
     await click("st-pick", 2);
     assert(/\u6545\u4e8b\u8bb2\u5b8c\u5566/.test(ev(`app.innerHTML`)), "story finished");
+    {
+      const fin = ev(`app.innerHTML`);
+      assert(/data-act="story" data-i="1"/.test(fin) && /\u4e0b\u4e00\u4e2a\u6545\u4e8b/.test(fin), "finish page offers the next story");
+      assert(/\ud83d\udd12 \u4e0b\u4e00\u4e2a\u65b0\u6545\u4e8b/.test(fin), "finish page shows the next unlock");
+    }
     assert.strictEqual(ev(`SRS.story.fire`), 1);
     assert.strictEqual((ev(`app.innerHTML`).match(/\u2b50/g) || []).length, 2, "1 miss => 2 stars");
     assert(/\u70b9\u9519 1 \u6b21/.test(ev(`app.innerHTML`)));
@@ -466,7 +472,7 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
     assert.strictEqual(ev(`SRS.story.fire`), 2);
     assert.strictEqual((ev(`app.innerHTML`).match(/\u2b50/g) || []).length, 3, "no miss => 3 stars");
     assert(/\u4e00\u6b21\u5c31\u6392\u5bf9/.test(ev(`app.innerHTML`)));
-    assert(/\u5df2\u5b8c\u6210 2 \u6b21/.test(ev(`homeQuestHtml()`)));
+    assert(/\u5df2\u89e3\u9501 3\/\d+/.test(ev(`homeQuestHtml()`)) && /data-act="story" data-i="1"/.test(ev(`homeQuestHtml()`)), "played story moves to the back: home offers the next one");
     ev(`parentPage()`);
     assert(/\u542c\u6545\u4e8b\u6392\u987a\u5e8f/.test(ev(`app.innerHTML`)) && /\u5b8c\u6210 2 \u6b21/.test(ev(`app.innerHTML`)), "parent page shows story count");
     assert.strictEqual(JSON.parse(ev(`backupText()`)).story.fire, 2, "story count is in the backup");
@@ -490,17 +496,17 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
         assert(s.need ? s.need.length >= 1 : !!ev(`LESSONS.find(l => l.id === ${JSON.stringify(s.unit)})`), s.id + ": has need or unit");
       });
     }
-    // more learned words => more stories; the home page shows at most 3, least-played first
+    // more learned words => more stories; the home page has one entry that plays the least-played story
     reset(); ev(`S = null`);
     ev(`LESSONS`).forEach(l => l.items.filter(i => !i.sentence && i.game !== false).forEach(i => seed(i.en.toLowerCase(), {box: 1})));
     const nStories = ev(`STORIES.length`);
     assert.strictEqual(ev(`STORIES.filter(st => storyProgress(st).open).length`), nStories, "all stories open once everything is learned");
     hh = ev(`homeQuestHtml()`);
-    assert.strictEqual((hh.match(/data-act="story"/g) || []).length, 3, "at most 3 story buttons");
-    assert(!/\ud83d\udd12/.test(hh) && new RegExp("\u8fd8\u6709 " + (nStories - 3) + " \u4e2a\u6545\u4e8b").test(hh), "no lock left, and the rest is counted");
+    assert.strictEqual((hh.match(/data-act="story"/g) || []).length, 1, "a single story button");
+    assert(!/\ud83d\udd12/.test(hh) && new RegExp("\u5df2\u89e3\u9501 " + nStories + "/" + nStories).test(hh), "no lock left, all unlocked");
     ev(`SRS.story.fire = 1; SRS.story.slide = 2; SRS.story.hose = 1;`);
     hh = ev(`homeQuestHtml()`);
-    assert(/data-i="3"/.test(hh) && /data-i="4"/.test(hh) && /data-i="5"/.test(hh) && !/data-act="story" data-i="0"/.test(hh), "played stories move to the back");
+    assert(/data-act="story" data-i="3"/.test(hh) && !/data-act="story" data-i="0"/.test(hh), "played stories move to the back");
     // play a 4-line story that needs only two words
     ev(`played.length = 0`);
     await click("story", 3);
@@ -514,7 +520,7 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
     ["mechanic"].forEach(k => seed(k, {box: 1}));
     assert.deepStrictEqual(J(ev(`STORIES.filter(st => storyProgress(st).open).map(st => st.id)`)), ["car"]);
     hh = ev(`homeQuestHtml()`);
-    assert(/data-act="story" data-i="5"/.test(hh) && /\ud83d\udd12/.test(hh), "car story open, next lock shown");
+    assert(/data-act="story" data-i="5"/.test(hh) && !/\ud83d\udd12/.test(hh), "car story open");
 
     // --- learning-mode toggles on the parent page ---
     reset(); ev(`parentPage("set")`);

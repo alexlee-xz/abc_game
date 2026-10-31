@@ -20,7 +20,8 @@
   .big small{display:block; font-size:14px; opacity:.9; margin-top:4px}
   .big.green{background:#43a047; box-shadow:0 5px 0 #2e7d32}
   .big.blue{background:#1e88e5; box-shadow:0 5px 0 #1565c0}
-  .big.green:active,.big.blue:active{box-shadow:0 2px 0 rgba(0,0,0,.3)}
+  .big.base{background:#ec407a; box-shadow:0 5px 0 #ad1457}
+  .big.green:active,.big.blue:active,.big.base:active{box-shadow:0 2px 0 rgba(0,0,0,.3)}
   .grid{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:12px}
   .card{
     background:#fff; border-radius:22px; padding:14px 8px;

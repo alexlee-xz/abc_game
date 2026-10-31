@@ -55,7 +55,7 @@ function phTotals(){
 function ipaEntryHtml(){
   const t = phTotals();
   return `
-    <button class="big green" data-act="ipa">🗣️ 英标 /ɪ/ /æ/<small>学 ${IPA.length} 个音 · 学过 ${t.learned}/${IPA.length} · ⭐ ${t.stars}/${t.max}</small></button>`;
+    <button class="big base" data-act="ipa">🗣️ 英标 /ɪ/ /æ/<small>学 ${IPA.length} 个音 · 学过 ${t.learned}/${IPA.length} · ⭐ ${t.stars}/${t.max}</small></button>`;
 }
 
 /* ---------- 英标表 ---------- */
@@ -268,7 +268,7 @@ function phGameFinish(){
     <div class="stars">${"⭐".repeat(PH.stars) || "🌟"}</div>
     <div class="sub">一次就答对 ${PH.stars} / ${PH.rounds.length} 个<br>学过 ${t.learned}/${IPA.length} · ⭐ ${t.stars}/${t.max}</div>
     <button class="big blue" data-act="ph-game">🔁 再玩一次</button>
-    <button class="big green" data-act="ipa">📋 英标表</button>
+    <button class="big base" data-act="ipa">📋 英标表</button>
     <button class="big" data-act="home">🏠 回到首页</button>`;
   playSeq([fx("fx_done_zh")]);
 }

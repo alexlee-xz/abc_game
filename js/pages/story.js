@@ -17,23 +17,20 @@ function storyProgress(st){
   const got = keys.filter(k => SRS.words[k] && SRS.words[k].box >= 1).length;
   return {got, need: keys.length, open: keys.length > 0 && got >= keys.length, lesson, names: [...new Set(words.map(w => w.en))]};
 }
-// 首页最多摆几个能玩的故事：完成次数少的排前面，所以新解锁的故事总在最上面，玩过的往后排
-const STORY_SHOW = 3;
-function storyHtml(){
+// 首页只放一个入口：播“完成次数最少”的那个故事（新解锁的总排最前，玩过的往后排）。按钮上写已解锁几个，没有能玩的才显示锁
+function storyState(){
   const all = storyList().map((st, i) => ({st, i, p: storyProgress(st), n: SRS.story[st.id] || 0}));
   const open = all.filter(x => x.p.open).sort((a, b) => a.n - b.n || a.i - b.i);
-  // 还没解锁的只露出最快能解锁的那一个（差的词最少），免得首页被一排锁占满
+  // 还没解锁的故事里，挑最快能解锁的（差的词最少）
   const lock = all.filter(x => !x.p.open && x.p.need > 0).sort((a, b) => (a.p.need - a.p.got) - (b.p.need - b.p.got) || a.i - b.i)[0];
-  const btn = x => `<button class="big blue" data-act="story" data-i="${x.i}">📖 听故事，排顺序<small>${x.st.title}${x.n ? ` · 已完成 ${x.n} 次` : ""}</small></button>`;
-  let h = open.slice(0, STORY_SHOW).map(btn).join("");
-  if(open.length > STORY_SHOW) h += `<div class="chips"><span class="chip">📖 还有 ${open.length - STORY_SHOW} 个故事，玩过的会往后排</span></div>`;
-  if(lock){
-    const need = lock.p.lesson && !lock.st.need ? `学会“${lock.p.lesson.zh}”单元的词后解锁` : `学会 ${lock.p.names.join("、")} 后解锁`;
-    h += `<div class="big locked">🔒 听故事，排顺序<small>${need} · ${lock.p.got}/${lock.p.need}</small></div>`;
-  }
-  return h;
+  return {all, open, lock};
 }
-let S = null;
+const storyLockText = x => (x.p.lesson && !x.st.need ? `学会“${x.p.lesson.zh}”单元的词后解锁` : `学会 ${x.p.names.join("、")} 后解锁`) + ` · ${x.p.got}/${x.p.need}`;
+function storyHtml(){
+  const {all, open, lock} = storyState();
+  if(open.length) return `<button class="big blue" data-act="story" data-i="${open[0].i}">📖 听故事，排顺序<small>${open[0].st.title} · 已解锁 ${open.length}/${all.length}</small></button>`;
+  return lock ? `<div class="big locked">🔒 听故事，排顺序<small>${storyLockText(lock)}</small></div>` : "";
+}let S = null;
 const NUMS = ["①", "②", "③", "④", "⑤", "⑥"];
 const storyClips = () => S.lines.map(it => enClip(it));
 function storyStart(idx){
@@ -83,13 +80,17 @@ async function storyPick(i, el){
 }
 function storyFinish(){
   const stars = S.miss === 0 ? 3 : S.miss <= 2 ? 2 : 1;
+  const {open, lock} = storyState();
+  const nxt = open.find(x => x.i !== S.idx);          // 完成次数最少的另一个故事
   app.innerHTML = `
     <div class="top"><span></span><span></span></div>
     <h1>🎉 故事讲完啦！</h1>
     <div class="stars">${"⭐".repeat(stars)}</div>
     <div class="sub">${S.miss ? `点错 ${S.miss} 次` : "一次就排对啦！"}</div>
-    <button class="big blue" data-act="st-again">🔁 再听一遍，再排一次</button>
-    <button class="big" data-act="home">🏠 回到首页</button>`;
+    ${nxt ? `<button class="big blue" data-act="story" data-i="${nxt.i}">📖 下一个故事<small>${nxt.st.title}</small></button>` : ""}
+    <button class="big ${nxt ? "" : "blue"}" data-act="st-again">🔁 再听一遍，再排一次</button>
+    <button class="big" data-act="home">🏠 回到首页</button>
+    ${lock ? `<div class="sub">🔒 下一个新故事：${storyLockText(lock)}</div>` : ""}`;
   playSeq([fx("fx_good_en"), ...storyClips(), fx("fx_done_zh")]);
 }
 
