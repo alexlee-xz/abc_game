@@ -107,6 +107,13 @@ f.addEventListener("load", async () => {
   click('[data-act="lesson"][data-i="1"]'); await sleep(100);
   click('[data-act="learn"]'); await sleep(100);
   log.push("learn grid ipa count: " + d.querySelectorAll(".card .ipa").length);
+  log.push("single-storey a on cards: '" + d.querySelector('[data-act="pick"][data-i="2"] .en').textContent + "' (expect te\u0251cher) plain a left: " + [...d.querySelectorAll(".card .en")].filter(e => /a/.test(e.textContent)).length + " (expect 0) | data keeps plain a: " + w.eval("LESSONS[1].items[2].en"));
+  w.eval("ipaPage()"); await sleep(100);
+  log.push("ipa page keeps plain a: \u0251 on screen=" + [...d.querySelectorAll(".pex,.psym")].filter(e => e.textContent.includes("\u0251") && e.classList.contains("pex")).length + " (expect 0) | ha(car)=c\u0251r: " + w.eval("(ha('car') === 'c\\u0251r')"));
+  click('[data-act="home"]'); await sleep(100);
+  click('[data-act="units"]'); await sleep(100);
+  click('[data-act="lesson"][data-i="1"]'); await sleep(100);
+  click('[data-act="learn"]'); await sleep(100);
   click('[data-act="pick"][data-i="2"]'); await sleep(200);
   const ipa = d.querySelector("#panel .ipa");
   log.push("detail ipa ok: " + (ipa && ipa.textContent === "/ˈtiːtʃər/"));

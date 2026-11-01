@@ -123,10 +123,10 @@ function questTeach(it, pre){
     <h2>🌰 认识新朋友</h2>
     <div class="card teach" data-act="q-say">
       <div class="emoji">${it.emoji}</div>
-      <div class="en">${it.en}</div>
+      <div class="en">${ha(it.en)}</div>
       ${ipaHtml(it)}
       <div class="zh">${it.zh}</div>
-      ${it.sen ? `<div class="sen">${it.sen}</div>` : ""}
+      ${it.sen ? `<div class="sen">${ha(it.sen)}</div>` : ""}
     </div>
     ${recHtml(it)}
     <button class="big green" data-act="q-next">👍 记住啦</button>`;
@@ -254,7 +254,7 @@ function questSay(s, pre){
     <h2>🗣 说一说</h2>
     <div class="card teach">
       <div class="emoji">${it.emoji}</div>
-      <div class="en" id="say-en" style="visibility:hidden">${it.en}</div>
+      <div class="en" id="say-en" style="visibility:hidden">${ha(it.en)}</div>
     </div>
     <div class="fb" id="fb">让孩子用英语说说看，说完家长点下面的按钮</div>
     <div class="row">
@@ -295,7 +295,7 @@ function questAct(s, pre){
     <h2>🕺 动一动</h2>
     <div class="card teach" data-act="a-say">
       <div class="emoji">${it.emoji}</div>
-      <div class="en" style="font-size:26px">${a.en}</div>
+      <div class="en" style="font-size:26px">${ha(a.en)}</div>
       <div class="zh">${a.zh}</div>
     </div>
     <div class="fb" id="fb">听指令，做动作！</div>

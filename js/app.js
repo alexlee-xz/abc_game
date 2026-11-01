@@ -31,7 +31,7 @@ let lesson = null;
 const itemCard = (it, idx) => `
   <div class="card ${it.sentence?"sentence":""}" data-act="pick" data-i="${idx}">
     <div class="emoji">${it.emoji}</div>
-    <div class="txt"><div class="en">${it.en}</div>${ipaHtml(it)}<div class="zh">${it.zh}</div></div>
+    <div class="txt"><div class="en">${ha(it.en)}</div>${ipaHtml(it)}<div class="zh">${it.zh}</div></div>
   </div>`;
 
 /* ============ 页面 ============ */
@@ -59,7 +59,7 @@ function unitsPage(){
       return `
       <div class="card ucard" data-act="lesson" data-i="${i}">
         <div class="uicon">${l.icon}</div>
-        <div class="en">${l.title}</div>
+        <div class="en">${ha(l.title)}</div>
         <div class="zh">${l.zh}</div>
         <div class="uprog ${got === ws.length ? "full" : ""}">${got === ws.length ? "✅" : "🌱"} ${got}/${ws.length} 个词</div>
       </div>`;
@@ -71,7 +71,7 @@ function lessonMenu(i){
   lesson = LESSONS[i];
   app.innerHTML = `
     <div class="top"><button class="back" data-act="units">← 返回</button><span></span></div>
-    <h1>${lesson.icon} ${lesson.title}</h1>
+    <h1>${lesson.icon} ${ha(lesson.title)}</h1>
     <div class="sub">${lesson.zh}</div>
     <button class="big green" data-act="learn">📖 学一学<small>点图片，听英文和中文</small></button>
     <button class="big blue" data-act="game">🎮 玩一玩<small>听声音，找图片</small></button>
@@ -94,10 +94,10 @@ function showDetail(i){
   const it = lesson.items[i];
   panel.innerHTML = `
     <div class="emoji">${it.emoji}</div>
-    <div class="en">${it.en}</div>
+    <div class="en">${ha(it.en)}</div>
     ${ipaHtml(it)}
     <div class="zh">${it.zh}</div>
-    ${it.sen ? `<div class="sen">${it.sen}</div><div class="senzh">${it.senZh}</div>` : ""}
+    ${it.sen ? `<div class="sen">${ha(it.sen)}</div><div class="senzh">${it.senZh}</div>` : ""}
     ${recHtml(it)}
     <div class="row">
       <button class="ghost" data-act="prev">◀</button>

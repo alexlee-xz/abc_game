@@ -42,9 +42,9 @@ function alphaTotals(){
   return {letters, stars, max: ALPHABET.length * 3};
 }
 const starsHtml = b => `${"★".repeat(bitsCount(b))}<i>${"★".repeat(3 - bitsCount(b))}</i>`;
-const letterHtml = L => `<div class="ab"><span class="up">${L.id.toUpperCase()}</span><span class="lo">${L.id}</span></div>`;
+const letterHtml = L => `<div class="ab"><span class="up">${L.id.toUpperCase()}</span><span class="lo">${ha(L.id)}</span></div>`;
 // 例词里高亮开头的字母（apple → 红色的 a + pple）
-const wordHtml = L => `<b class="hl">${esc(L.word.charAt(0))}</b>${esc(L.word.slice(1))}`;
+const wordHtml = L => `<b class="hl">${esc(ha(L.word.charAt(0)))}</b>${esc(ha(L.word.slice(1)))}`;
 
 /* ---------- 首页入口（quest.js 的 homeQuestHtml 里调用） ---------- */
 function basicsHtml(){

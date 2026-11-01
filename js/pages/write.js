@@ -36,7 +36,7 @@ function writeShow(){
 function writeSetup(it){
   const cv = document.getElementById("wc");
   const cssW = Math.round(Math.min((app.clientWidth || 360) - 28, 420)), dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const lines = it.en.split(/\s+/);
+  const lines = ha(it.en).split(/\s+/);
   const ms = document.createElement("canvas").getContext("2d");
   ms.font = wrFont(100);
   const w100 = Math.max(...lines.map(l => ms.measureText(l).width));

@@ -9,6 +9,8 @@
    3. 都没有（例如微信内置浏览器常见）：提示用系统浏览器打开。 */
 
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+// 只在屏幕上把小写 a 显示成单层的 ɑ（U+0251）；词库、语音、复习记录和英标页都用普通 a
+const ha = s => String(s).replace(/a/g, "\u0251");
 const ipaHtml = it => (it && it.ipa) ? `<div class="ipa">/${esc(it.ipa)}/</div>` : "";
 const recHtml = it => `
   <button class="rec" data-act="rec" data-id="${it.id}" data-en="${esc(it.en)}" data-s="${it.sentence ? 1 : 0}">🎤 跟读打分</button>

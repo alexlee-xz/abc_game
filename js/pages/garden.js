@@ -19,7 +19,7 @@ function garden(){
         <div class="card mini ${w ? "" : "locked"}" data-act="g-say" data-i="${i}">
           <div class="stage">${stage}${thirsty ? `<span class="drop">💧</span>` : ""}</div>
           <div class="emoji">${it.emoji}</div>
-          <div class="en">${it.en}</div>
+          <div class="en">${ha(it.en)}</div>
         </div>`;
       }).join("")}
     </div>

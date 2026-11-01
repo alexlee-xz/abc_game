@@ -32,6 +32,7 @@ vm.runInContext(`
   const fx = id => { const f = FX.find(x=>x.id===id); if(!f) throw new Error('missing fx '+id); return clip('fx',id,f.text,f.lang); };
   const showZh = () => true;
   const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const ha = s => String(s).replace(/a/g, '\u0251');
   globalThis.loadSRS = () => ({words:{}}); var SRS = {words:{}};
 `, ctx);
 vm.runInContext(read("js/core/profile.js"), ctx);
@@ -74,15 +75,15 @@ const tick = () => new Promise(r => setTimeout(r, 5));
   click("al-open", {i: "0"});
   assert(ev('detail.classList.contains("show")'));
   const panel = ev("panel.innerHTML");
-  assert(/<b class="hl">a<\/b>pple/.test(panel), "first letter highlighted: " + panel.slice(0, 200));
+  assert(/<b class="hl">\u0251<\/b>pple/.test(panel), "first letter highlighted: " + panel.slice(0, 200));
   assert(/苹果/.test(panel));
   assert.deepStrictEqual(J(ev("__played.at(-1)")), ["audio/let/a.mp3", "audio/letw/a.mp3", "audio/letz/a.mp3"]);
   assert.strictEqual(ev("alphaTotals().stars"), 1);
   assert.strictEqual(JSON.parse(store["abc_alpha_v1__" + amyId]).m.a, 1);
   click("al-next");
-  assert(/<b class="hl">b<\/b>all/.test(ev("panel.innerHTML")));
+  assert(/<b class="hl">b<\/b>\u0251ll/.test(ev("panel.innerHTML")));
   click("al-prev"); click("al-prev");                                  // a -> z (wraps)
-  assert(/<b class="hl">z<\/b>ebra/.test(ev("panel.innerHTML")));
+  assert(/<b class="hl">z<\/b>ebr\u0251/.test(ev("panel.innerHTML")));
   click("al-name");
   assert.deepStrictEqual(J(ev("__played.at(-1)")), ["audio/let/z.mp3"]);
   click("al-word");

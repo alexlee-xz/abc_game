@@ -405,7 +405,7 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
     reset(); capNew(); seedDue(["teacher", "vet", "doctor"]);
     await click("quest");
     await drive({stopAt: "act"});
-    assert(/\u52a8\u4e00\u52a8/.test(ev(`app.innerHTML`)) && /Show me a/.test(ev(`app.innerHTML`)) && /a-done/.test(ev(`app.innerHTML`)));
+    assert(/\u52a8\u4e00\u52a8/.test(ev(`app.innerHTML`)) && /Show me [a\u0251]/.test(ev(`app.innerHTML`)) && /a-done/.test(ev(`app.innerHTML`)));
     const actId = ev(`Q.cur.id`);
     ev(`played.length = 0`); await click("a-say");
     assert.strictEqual(JSON.stringify(J(ev(`played`))), JSON.stringify([[`audio/act/${actId}.mp3`]]), "replay the command");
