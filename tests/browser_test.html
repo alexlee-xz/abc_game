@@ -103,6 +103,7 @@ f.addEventListener("load", async () => {
   // learn mode -> detail panel for "teacher": IPA shown, read-aloud scored with a mocked recogniser
   click('[data-act="p-back"]'); await sleep(100);
   log.push("back button locks the parent page: " + (w.eval("parentUntil") === 0));
+  click('[data-act="units"]'); await sleep(100);
   click('[data-act="lesson"][data-i="1"]'); await sleep(100);
   click('[data-act="learn"]'); await sleep(100);
   log.push("learn grid ipa count: " + d.querySelectorAll(".card .ipa").length);
@@ -171,6 +172,7 @@ f.addEventListener("load", async () => {
   // pictures at their real sizes: learn grid (54px), detail panel (96px), new-word page (110px)
   const sz = sel => { const e = d.querySelector(sel); if(!e) return "missing"; const r = e.getBoundingClientRect(); return Math.round(r.width) + "x" + Math.round(r.height); };
   w.eval("home()"); await sleep(50);
+  click('[data-act="units"]'); await sleep(100);
   click('[data-act="lesson"][data-i="1"]'); await sleep(100); click('[data-act="learn"]'); await sleep(100);
   log.push("learn grid svg: " + d.querySelectorAll(".card .emoji svg").length + " of " + d.querySelectorAll(".card .emoji").length + " size " + sz(".card .emoji svg") + " (expect 54x54)");
   click('[data-act="pick"][data-i="2"]'); await sleep(150);
@@ -218,6 +220,7 @@ f.addEventListener("load", async () => {
 
   // ----- "玩一玩" must never get stuck: tap the right card very quickly in every round (the old bug) -----
   w.eval("home()"); await sleep(100);
+  click('[data-act="units"]'); await sleep(100);
   click('[data-act="lesson"][data-i="1"]'); await sleep(100);
   click('[data-act="game"]'); await sleep(50);
   let rounds = 0, stuckAt = -1;
@@ -234,6 +237,37 @@ f.addEventListener("load", async () => {
     rounds++;
   }
   log.push("game: rounds advanced=" + rounds + " stuckAt=" + stuckAt + " finished=" + d.getElementById("app").innerText.includes("再玩一次") + " (expect 8, -1, true)");
+
+  // ----- 练写单词: tracing canvas with real pointer events, empty / traced / skip / finish page -----
+  w.eval("home()"); await sleep(100);
+  click('[data-act="units"]'); await sleep(100);
+  click('[data-act="lesson"][data-i="3"]'); await sleep(100);
+  log.push("write button in the unit menu: " + !!d.querySelector('[data-act="write"]'));
+  click('[data-act="write"]'); await sleep(200);
+  const wcv = d.getElementById("wc"), wr = wcv.getBoundingClientRect();
+  log.push("write page: words=" + w.eval("Wr.words.length") + " canvas=" + Math.round(wr.width) + "x" + Math.round(wr.height) + " fitsScreen=" + (wr.width <= 400));
+  click('[data-act="w-check"]'); await sleep(100);
+  log.push("write empty check: tries=" + w.eval("Wr.tries") + " (expect 1) message='" + d.getElementById("wfb").textContent + "'");
+  const ptr = (type, x, y) => wcv.dispatchEvent(new w.PointerEvent(type, {clientX: wr.left + x, clientY: wr.top + y, pointerId: 7, bubbles: true}));
+  ptr("pointerdown", 30, 30); ptr("pointermove", 80, 60); ptr("pointermove", 120, 40); ptr("pointerup", 120, 40);
+  log.push("pointer strokes leave ink: " + (w.eval("writeScore().ink") > 100));
+  click('[data-act="w-clear"]'); await sleep(50);
+  log.push("clear removes the ink: " + w.eval("writeScore().ink") + " (expect 0)");
+  w.eval("Wr.g.ink.save(); Wr.g.ink.setTransform(1, 0, 0, 1, 0, 0); Wr.g.ink.drawImage(Wr.g.mask.canvas, 0, 0); Wr.g.ink.restore(); writeRedraw()");
+  log.push("tracing the whole word: cover=" + w.eval("writeScore().cover.toFixed(2)") + " stray=" + w.eval("writeScore().stray.toFixed(2)"));
+  click('[data-act="w-check"]'); await sleep(100);
+  for(let n = 0; n < 300 && w.eval("Wr.i") === 0; n++) await sleep(100);
+  log.push("traced word accepted: next word=" + w.eval("Wr.i") + " (expect 1) stars=" + w.eval("Wr.stars") + " (0 because of the empty try)");
+  w.eval("Wr.i = Wr.words.length - 2; writeShow()"); await sleep(100);
+  const longest = w.eval("Wr.words.map(x => x.en).sort((a, b) => b.length - a.length)[0]");
+  w.eval("Wr.i = Wr.words.findIndex(x => x.en === " + JSON.stringify(longest) + "); writeShow()"); await sleep(100);
+  const lr = d.getElementById("wc").getBoundingClientRect();
+  log.push("longest word '" + longest + "': canvas=" + Math.round(lr.width) + "x" + Math.round(lr.height));
+  w.eval("Wr.i = Wr.words.length - 1; writeShow()"); await sleep(100);
+  click('[data-act="w-skip"]'); await sleep(100);
+  log.push("write finish page: " + d.getElementById("app").innerText.includes("写完啦") + " again=" + !!d.querySelector('[data-act="write"]') + " back=" + !!d.querySelector('[data-act="menu"]'));
+  click('[data-act="menu"]'); await sleep(100);
+  log.push("back to the unit menu: " + d.getElementById("app").innerText.includes("练一练写"));
 
   // ----- transfer link in the real DOM: build it, open it as if tapped in another browser, confirm -----
   w.eval(`SRS = freshSRS(); SRS.words.teacher = Object.assign(newWord(todayNum()), {box: 3, due: todayNum() + 2}); saveSRS();`);

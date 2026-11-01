@@ -255,7 +255,7 @@ const ART = (function(){
     sm(-6, 10, .88, kid({body: "#66bb6a", legs: "#455a64", arms: "out"}));
 
   I.s_stuck = kid({body: "#ff8a65", arms: "up", mouth: "open", noLegs: true}) +
-    path("M0 62Q12 55 25 62T50 62T75 62T100 62V100H0Z", BRN) + circ(16, 78, 3, "#6d4c41", NS) + circ(80, 84, 4, "#6d4c41", NS) + circ(60, 90, 2.5, "#6d4c41", NS) +
+    path("M3 62Q12 55 25 62T50 62T75 62T97 62V96H3Z", BRN) + circ(16, 78, 3, "#6d4c41", NS) + circ(80, 84, 4, "#6d4c41", NS) + circ(60, 90, 2.5, "#6d4c41", NS) +
     line("M12 12V26", RED, 4) + circ(12, 33, 2.5, RED, NS) + line("M88 12V26", RED, 4) + circ(88, 33, 2.5, RED, NS);
 
   I.s_carrot = ell(50, 90, 38, 6, "#eceff1") +
@@ -270,7 +270,71 @@ const ART = (function(){
     rect(46, 60, 8, 14, 0, YEL) + rect(34, 74, 32, 10, 3, "#fbc02d") + star5(50, 35, 11, "#fff59d") +
     star(12, 12, 6, "#ff8a80") + star(88, 14, 6, "#80deea") + star(90, 60, 4, YEL) + star(10, 62, 4, YEL);
 
-  const wrap = body => `<svg xmlns=""http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img">${body}</svg>`;
+  /* ---------- 第四单元：汽车与卡车（都朝右开，地面在 y≈86） ---------- */
+  const wheel = (x, y, r) => circ(x, y, r, "#455a64") + circ(x, y, n(r * .42), GRY, 'stroke-width="2"');
+  const glass = d => path(d, "#b3e5fc", 'stroke-width="2.5"');
+  const road = () => line("M4 87H96", INK, 2.5);
+  // 小轿车车身：color 车身色，roof 顶上要加的东西（出租车灯等）
+  const sedan = (color, roof) => (roof || "") + path("M26 54L36 36H66L78 54Z", color) + rect(8, 52, 86, 22, 6, color) +
+    glass("M32 52L39 40H49V52Z") + glass("M54 52V40H64L72 52Z") + circ(90, 60, 3, YEL, 'stroke-width="2"') + wheel(28, 76, 9) + wheel(74, 76, 9);
+  const truckBox = (cargo, cab) => rect(4, 28, 56, 44, 3, cargo) + path("M60 42H78L94 58V72H60Z", cab) + glass("M65 46H76L86 58H65Z") +
+    circ(91, 64, 2.6, YEL, 'stroke-width="2"') + wheel(24, 76, 9) + wheel(74, 76, 9);
+  const garbageTruck = () => truckBox("#66bb6a", ORG) + rect(5, 40, 8, 32, 2, "#2e7d32") +
+    path("M26 44H44L42 62H28Z", WHT, 'stroke-width="2.5"') + rect(24, 40, 22, 5, 2, WHT, 'stroke-width="2.5"') + line("M33 49V58M37 49V58", "#9e9e9e", 2);
+  const iceTruck = () => path("M6 72V38Q6 32 12 32H62Q68 32 72 38L92 58V72Z", "#f8bbd0") + rect(12, 42, 30, 16, 2, "#fff59d", 'stroke-width="2.5"') +
+    path("M10 42H44V34H10Z", WHT) + path("M10 34H18V42H10ZM26 34H34V42H26Z", "#ec407a", NS) + path("M10 34H44V42H10Z", "none", 'stroke-width="2.5"') +
+    glass("M66 42L82 58H66Z") + circ(89, 64, 2.6, YEL, 'stroke-width="2"') + wheel(24, 76, 9) + wheel(72, 76, 9) +
+    path("M33 14H45L39 30Z", "#ffcc80") + circ(39, 14, 7, "#f48fb1") + circ(39, 7, 2.4, RED, 'stroke-width="2"');
+  const kidSeat = () => kid({body: "#ff8a65", legs: "#5c6bc0", mouth: "smile",
+    back: rect(22, 34, 56, 56, 8, "#90a4ae") + rect(32, 62, 36, 26, 4, "#78909c", NS),
+    front: tube("M39 44L61 70", "#37474f", 4) + rect(56, 66, 10, 8, 2, YEL, 'stroke-width="2.2"')});
+
+  I.car = road() + sedan(RED);
+
+  I.truck = road() + truckBox(WHT, BLUE) + rect(4, 28, 56, 8, 3, BLUE) + line("M18 50H46M18 58H46", "#90caf9", 3);
+
+  I.race_car = line("M6 28H20M9 36H22M6 44H14", SKY, 3.5) + road() +
+    rect(16, 36, 4, 28, 0, "#37474f") + rect(8, 33, 22, 5, 2, "#37474f") +
+    path("M8 70Q8 60 18 58L38 54L50 44Q52 42 56 42H64Q68 42 70 46L74 54L90 58Q94 60 94 68V74H8Z", RED) +
+    glass("M52 52L56 46H64L68 52Z") + circ(40, 64, 8, WHT, 'stroke-width="2.5"') + line("M40 59V69", INK, 3) +
+    line("M12 66H28", WHT, 3) + wheel(28, 74, 11) + wheel(76, 74, 11);
+
+  I.taxi = road() + sedan(YEL, rect(44, 24, 20, 10, 3, WHT) + rect(51, 32, 6, 5, 0, INK, NS)) +
+    [14, 22, 30, 38, 46, 54, 62, 70].map((x, i) => rect(x, 60 + (i % 2) * 5, 4, 5, 0, INK, NS)).join("");
+
+  I.tow_truck = road() +
+    `<g transform="rotate(14 38 72)">` + rect(2, 56, 34, 14, 4, "#ab47bc") + path("M8 56L14 46H28L34 56Z", "#ab47bc") + glass("M14 55L17 48H22V55Z") +
+      wheel(10, 72, 6) + wheel(30, 72, 6) + `</g>` +
+    tube("M52 56L30 30", "#78909c", 5) + line("M30 30L22 52", INK, 2.5) + circ(22, 54, 3, GRY, 'stroke-width="2.5"') +
+    rect(40, 56, 54, 14, 3, ORG) + path("M64 42H80L94 56V70H64Z", ORG) + glass("M69 46H78L86 56H69Z") +
+    circ(91, 62, 2.6, YEL, 'stroke-width="2"') + circ(72, 38, 3.2, YEL, 'stroke-width="2"') + wheel(52, 76, 9) + wheel(80, 76, 9);
+
+  I.garbage_truck = road() + garbageTruck() + circ(78, 22, 2, "#9e9e9e", NS) + circ(90, 28, 2.4, "#9e9e9e", NS);
+
+  I.fire_engine = road() + rect(6, 44, 58, 28, 3, RED) + path("M64 44H80L94 58V72H64Z", "#ef5350") + glass("M69 48H78L87 58H69Z") +
+    rect(66, 38, 12, 5, 2, YEL, 'stroke-width="2.2"') + rect(6, 56, 58, 5, 0, WHT, NS) +
+    line("M10 38H60M10 31H60", GRY, 3.5) + line("M16 31V38M26 31V38M36 31V38M46 31V38M56 31V38", GRY, 3) +
+    circ(91, 64, 2.6, YEL, 'stroke-width="2"') + wheel(22, 76, 9) + wheel(48, 76, 9) + wheel(80, 76, 9);
+
+  I.ice_cream_truck = road() + iceTruck();
+
+  I.electric_car = road() + rect(4, 36, 11, 38, 3, WHT) + rect(7, 40, 5, 8, 1, "#66bb6a", 'stroke-width="2"') +
+    tube("M14 54Q22 54 24 62", "#455a64", 3) +
+    sm(14, 8, .84, sedan("#26a69a")) +
+    path("M52 56L46 68H52L49 76L60 63H54L58 56Z", YEL, 'stroke-width="2.2"');
+
+  I.s_garbage = path("M6 54H28L25 86H9Z", GRY) + rect(4, 47, 26, 8, 2, "#78909c") + circ(12, 44, 5, "#c5e1a5", 'stroke-width="2"') + circ(22, 42, 4, "#ffe082", 'stroke-width="2"') +
+    sm(30, 26, .66, road() + garbageTruck());
+
+  I.s_taxi = sm(-4, 22, .62, kid({body: "#66bb6a", legs: "#455a64", arms: "up", mouth: "open"})) + sm(30, 24, .66, road() + sedan(YEL, rect(44, 24, 20, 10, 3, WHT)));
+
+  I.s_icecream = path("M4 52H28L16 86Z", "#ffcc80") + line("M9 58L20 62M13 70L22 72", "#e0a040", 2) +
+    circ(16, 42, 12, "#f48fb1") + circ(10, 36, 2, YEL, NS) + circ(22, 40, 2, "#80deea", NS) + circ(15, 47, 2, WHT, NS) + circ(16, 28, 3, RED, 'stroke-width="2"') +
+    sm(30, 30, .66, road() + iceTruck());
+
+  I.s_belt = kidSeat() + line("M12 86H88", INK, 2.5);
+
+  const wrap = body => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img">${body}</svg>`;
   const out = {};
   Object.keys(I).forEach(k => { out[k] = wrap(I[k]); });
   return out;

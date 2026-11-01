@@ -60,6 +60,27 @@ const LESSONS = [
       {"id": "s_carrot", "en": "You can have my last carrot!", "zh": "我最后一根胡萝卜给你吃！", "emoji": "🥕🎁", "sentence": true},
       {"id": "s_best", "en": "You're the best!", "zh": "你是最棒的！", "emoji": "🏆👍", "sentence": true}
     ]
+  },
+  {
+    "id": "unit4",
+    "title": "Cars and Trucks",
+    "zh": "汽车与卡车",
+    "icon": "🚗",
+    "items": [
+      {"id": "car", "en": "car", "ipa": "kɑːr", "zh": "汽车", "emoji": "🚗"},
+      {"id": "truck", "en": "truck", "ipa": "trʌk", "zh": "卡车", "emoji": "🚚"},
+      {"id": "race_car", "en": "race car", "ipa": "ˈreɪs kɑːr", "zh": "赛车", "emoji": "🏎️"},
+      {"id": "taxi", "en": "taxi", "ipa": "ˈtæksi", "zh": "出租车", "emoji": "🚕"},
+      {"id": "tow_truck", "en": "tow truck", "ipa": "ˈtoʊ trʌk", "zh": "拖车", "emoji": "🛻"},
+      {"id": "garbage_truck", "en": "garbage truck", "ipa": "ˈɡɑːrbɪdʒ trʌk", "zh": "垃圾车", "emoji": "🚛"},
+      {"id": "fire_engine", "en": "fire engine", "ipa": "ˈfaɪər ˌendʒɪn", "zh": "消防车", "emoji": "🚒"},
+      {"id": "ice_cream_truck", "en": "ice cream truck", "ipa": "ˈaɪs kriːm trʌk", "zh": "冰淇淋车", "emoji": "🍦"},
+      {"id": "electric_car", "en": "electric car", "ipa": "ɪˈlektrɪk kɑːr", "zh": "电动汽车", "emoji": "🔌"},
+      {"id": "s_garbage", "en": "The garbage truck takes away the trash.", "zh": "垃圾车把垃圾运走。", "emoji": "🚛🗑️", "sentence": true},
+      {"id": "s_taxi", "en": "The taxi can pick you up.", "zh": "出租车可以来接你。", "emoji": "🚕🙋", "sentence": true},
+      {"id": "s_icecream", "en": "The ice cream truck sells ice cream.", "zh": "冰淇淋车卖冰淇淋。", "emoji": "🍦🚚", "sentence": true},
+      {"id": "s_belt", "en": "Fasten your seat belt.", "zh": "系好安全带。", "emoji": "🚗💺", "sentence": true}
+    ]
   }
 ];
 
@@ -114,7 +135,16 @@ const ACTS = {
   "home":         {"en": "Run home!", "zh": "跑回“家”（沙发或房间的角落）"},
   "love":         {"en": "Make a heart with your hands!", "zh": "用双手比一个爱心"},
   "kind":         {"en": "Be kind! Share a toy!", "zh": "把一样玩具分享给别人"},
-  "forever":      {"en": "Best friends forever! High five!", "zh": "和家人击掌，说好永远在一起"}
+  "forever":      {"en": "Best friends forever! High five!", "zh": "和家人击掌，说好永远在一起"},
+  "car":             {"en": "Drive the car! Vroom, vroom!", "zh": "双手握方向盘，开小汽车"},
+  "truck":           {"en": "Drive the big truck!", "zh": "张开手臂，开一辆大卡车"},
+  "race_car":        {"en": "Go, go, race car!", "zh": "快快跑，像赛车一样冲过终点"},
+  "taxi":            {"en": "Wave for a taxi!", "zh": "挥挥手，招一辆出租车"},
+  "tow_truck":       {"en": "Pull, pull, tow truck!", "zh": "做拉绳子的动作，拖走小汽车"},
+  "garbage_truck":   {"en": "Put the trash in the garbage truck!", "zh": "把一张废纸扔进垃圾桶"},
+  "fire_engine":     {"en": "Here comes the fire engine! Wee-woo!", "zh": "一边跑一边学消防车“呜哇呜哇”"},
+  "ice_cream_truck": {"en": "Ice cream, please!", "zh": "假装向冰淇淋车买一个冰淇淋"},
+  "electric_car":    {"en": "Plug in the electric car!", "zh": "假装给电动汽车插上充电线"}
 };
 
 // 故事专用句子（只用在“听故事排顺序”里，不进单元练习、不进复习）。语音：audio/en/<id>.mp3（tools/gen_audio.py 生成）。
@@ -161,7 +191,19 @@ const STORY_LINES = [
   {"id": "s_friends", "en": "We are best friends.", "emoji": "👫🌈"},
   {"id": "s_you", "en": "You are special.", "emoji": "🌟🫵"},
   {"id": "s_love2", "en": "I love you.", "emoji": "❤️😍"},
-  {"id": "s_ever", "en": "Friends forever!", "emoji": "♾️🤝"}
+  {"id": "s_ever", "en": "Friends forever!", "emoji": "♾️🤝"},
+  {"id": "s_wait", "en": "I wait for a taxi.", "emoji": "🧍🛣️"},
+  {"id": "s_arrive", "en": "We are here!", "emoji": "📍🎉"},
+  {"id": "s_dirty", "en": "Trash, trash, trash!", "emoji": "🗑️🍌"},
+  {"id": "s_gcome", "en": "The garbage truck comes.", "emoji": "🚛💨"},
+  {"id": "s_clean", "en": "The street is clean!", "emoji": "🛣️✨"},
+  {"id": "s_song", "en": "I hear a song.", "emoji": "👂🎵"},
+  {"id": "s_iccome", "en": "The ice cream truck comes.", "emoji": "🍦🚐"},
+  {"id": "s_yum", "en": "Yum! Thank you!", "emoji": "😋🍨"},
+  {"id": "s_towstuck", "en": "The car cannot move.", "emoji": "🚗🛑"},
+  {"id": "s_towcome", "en": "The tow truck comes.", "emoji": "🛻💨"},
+  {"id": "s_pull", "en": "Pull, pull, pull!", "emoji": "🪢💪"},
+  {"id": "s_free", "en": "The car can go!", "emoji": "🚗🏁"}
 ];
 
 // 听故事排顺序：need 里的词（单词 id）都学过（等级≥1）后解锁；没写 need 就是 unit 里的全部词。lines 是故事的句子 id（按故事顺序，可以用 LESSONS 里的句子，也可以用 STORY_LINES）。
@@ -178,7 +220,11 @@ const STORIES = [
   {"id": "goal", "title": "足球赛", "need": ["footballer"], "lines": ["s_run", "s_kick", "s_goal", "s_win"]},
   {"id": "hug", "title": "回家抱一抱", "need": ["home", "family", "hug"], "lines": ["s_runhome", "s_see", "s_hug", "s_loveu"]},
   {"id": "teddy", "title": "难过的小熊", "need": ["care", "kind"], "lines": ["s_sadted", "s_care", "s_share", "s_smile"]},
-  {"id": "friends", "title": "永远的朋友", "need": ["special", "love", "forever"], "lines": ["s_friends", "s_you", "s_love2", "s_ever"]}
+  {"id": "friends", "title": "永远的朋友", "need": ["special", "love", "forever"], "lines": ["s_friends", "s_you", "s_love2", "s_ever"]},
+  {"id": "taxi", "title": "坐出租车", "need": ["taxi"], "lines": ["s_wait", "s_taxi", "s_belt", "s_arrive"]},
+  {"id": "garbage", "title": "垃圾车来啦", "need": ["garbage_truck"], "lines": ["s_dirty", "s_gcome", "s_garbage", "s_clean"]},
+  {"id": "icecream", "title": "冰淇淋车", "need": ["ice_cream_truck"], "lines": ["s_song", "s_iccome", "s_icecream", "s_yum"]},
+  {"id": "tow", "title": "拖车来帮忙", "need": ["tow_truck", "car"], "lines": ["s_towstuck", "s_towcome", "s_pull", "s_free"]}
 ];
 
 // 容易混淆的词（按词的英文小写）。词长到 🌿 以上、改成 4 选 1 时，干扰项优先从这里挑。双向生效，写一边就行。
@@ -188,7 +234,10 @@ const CONFUSE = {
   "firefighter": ["fire station", "hose"], "fire station": ["alarm bell", "hose"],
   "hose": ["pole"], "save": ["cheer"],
   "dancer": ["musician", "footballer"], "teacher": ["programmer"],
-  "family": ["home"], "hug": ["love"], "care": ["kind"], "special": ["forever"]
+  "family": ["home"], "hug": ["love"], "care": ["kind"], "special": ["forever"],
+  "car": ["truck", "taxi"], "truck": ["garbage truck", "tow truck"], "race car": ["car", "taxi"],
+  "garbage truck": ["tow truck", "ice cream truck"], "tow truck": ["fire engine"], "fire engine": ["fire station"],
+  "electric car": ["car", "race car"], "ice cream truck": ["truck"]
 };
 
 // 家长小任务：每个词在生活里怎么用一用（按词的英文小写）
@@ -219,5 +268,14 @@ const TIPS = {
   "home": "回家开门时说：Home! 让孩子跟着说。",
   "love": "睡前抱抱孩子说：Love! 让孩子也比个爱心说 love。",
   "kind": "孩子分享玩具或帮忙时夸他：Kind! You are kind.",
-  "forever": "和孩子拉钩，说：Forever! 比如“爱你到永远”。"
+  "forever": "和孩子拉钩，说：Forever! 比如“爱你到永远”。",
+  "car": "坐车或在路上看到汽车时说：Car! 让孩子数数看到几辆 car。",
+  "truck": "路上看到大卡车时指给孩子看：Truck! 让孩子学卡车“轰隆隆”。",
+  "race car": "玩玩具赛车比一比谁快：Race car! Go, go, go!",
+  "taxi": "看到黄色或带顶灯的出租车时说：Taxi! 打车时让孩子说一说。",
+  "tow truck": "看到拖车或玩具拖车时说：Tow truck! 用玩具车玩“拖走小汽车”的游戏。",
+  "garbage truck": "倒垃圾、看到环卫车时说：Garbage truck! 让孩子说 Bye-bye, trash!",
+  "fire engine": "看到消防车或听到警笛声时说：Fire engine! 让孩子学“呜哇呜哇”。",
+  "ice cream truck": "看到卖冰淇淋的小车或吃冰淇淋时说：Ice cream truck!",
+  "electric car": "看到充电桩或电动汽车时说：Electric car! 说说它为什么很安静。"
 };

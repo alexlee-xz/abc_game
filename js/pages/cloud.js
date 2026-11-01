@@ -124,7 +124,7 @@ function onSyncDone(res){
       const bk = document.getElementById("bk"), cc = document.getElementById("cc");
       if(!(bk && bk.value) && !(cc && cc.value)) parentRefresh();
     }
-  }else if(document.querySelector('[data-act="lesson"]')) home();
+  }else if(document.querySelector('[data-act="units"]')) home();
 }
 
 document.addEventListener("click", e => {

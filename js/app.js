@@ -41,22 +41,41 @@ function home(){
     <h1>🔤 ABC 英语小游戏</h1>
     <div class="sub">点一点，听一听，学英语</div>
     ${homeQuestHtml()}
-    ${LESSONS.map((l,i)=>`
-      <button class="big" data-act="lesson" data-i="${i}">
-        ${l.icon} ${l.title}<small>${l.zh}</small>
-      </button>`).join("")}
+    <button class="big" data-act="units">📚 单元练习<small>${LESSONS.length} 个主题 · 想学哪个自己选</small></button>
     <div class="footer">建议打开手机声音 🔊<br><span data-act="parent">👨‍👩‍👧 家长页</span></div>`;
+}
+
+// 单元列表：首页只放一个“单元练习”入口，点进来再选想学的单元
+const unitWords = l => l.items.filter(it => !it.sentence && it.game !== false);
+function unitsPage(){
+  session++; token++; player.pause();
+  detail.classList.remove("show");
+  app.innerHTML = `
+    <div class="top"><button class="back" data-act="home">← 返回</button><span></span></div>
+    <h1>📚 单元练习</h1>
+    <div class="sub">选一个想学的主题</div>
+    <div class="grid">${LESSONS.map((l, i) => {
+      const ws = unitWords(l), got = ws.filter(w => SRS.words[wkey(w)]).length;
+      return `
+      <div class="card ucard" data-act="lesson" data-i="${i}">
+        <div class="uicon">${l.icon}</div>
+        <div class="en">${l.title}</div>
+        <div class="zh">${l.zh}</div>
+        <div class="uprog ${got === ws.length ? "full" : ""}">${got === ws.length ? "✅" : "🌱"} ${got}/${ws.length} 个词</div>
+      </div>`;
+    }).join("")}</div>`;
 }
 
 function lessonMenu(i){
   session++;
   lesson = LESSONS[i];
   app.innerHTML = `
-    <div class="top"><button class="back" data-act="home">← 返回</button><span></span></div>
+    <div class="top"><button class="back" data-act="units">← 返回</button><span></span></div>
     <h1>${lesson.icon} ${lesson.title}</h1>
     <div class="sub">${lesson.zh}</div>
     <button class="big green" data-act="learn">📖 学一学<small>点图片，听英文和中文</small></button>
-    <button class="big blue" data-act="game">🎮 玩一玩<small>听声音，找图片</small></button>`;
+    <button class="big blue" data-act="game">🎮 玩一玩<small>听声音，找图片</small></button>
+    <button class="big base" data-act="write">✍️ 练一练写<small>跟着虚线，描一描单词</small></button>`;
   playSeq([fx("fx_welcome_zh")]);
 }
 
@@ -166,6 +185,7 @@ document.addEventListener("click", e=>{
   const i = +t.dataset.i;
   switch(t.dataset.act){
     case "home":   home(); break;
+    case "units":  unitsPage(); break;
     case "lesson": lessonMenu(i); break;
     case "menu":   lessonMenu(LESSONS.indexOf(lesson)); break;
     case "learn":  learn(); break;
