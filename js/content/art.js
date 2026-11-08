@@ -334,6 +334,58 @@ const ART = (function(){
 
   I.s_belt = kidSeat() + line("M12 86H88", INK, 2.5);
 
+  /* ---------- 第五单元：图书馆 ---------- */
+  const libBuilding = () => path("M8 40L50 14L92 40Z", "#ef9a9a") + rect(42, 26, 16, 10, 1.5, BLUE, 'stroke-width="2"') + line("M50 26V36", WHT, 2) +
+    rect(10, 40, 80, 7, 2, "#bcaaa4") + rect(16, 47, 12, 32, 2, WHT) + rect(44, 47, 12, 32, 2, WHT) + rect(72, 47, 12, 32, 2, WHT) +
+    rect(8, 79, 84, 10, 2, "#bcaaa4");
+  const readKid = () => kid({body: "#66bb6a", legs: "#455a64", armL: [37, 48, 36, 64], armR: [63, 48, 64, 64],
+    hair: path("M35 24Q36 10 50 10Q64 10 65 24Q58 17 50 17Q42 17 35 24Z", "#6d4c41"),
+    front: path("M50 60Q42 55 33 58V74Q42 71 50 75Z", WHT) + path("M50 60Q58 55 67 58V74Q58 71 50 75Z", "#fff8e1") +
+      line("M50 60V75", INK, 2.5) + line("M37 63Q42 62 46 64M37 68Q42 67 46 69", "#90a4ae", 1.8)});
+
+  I.library = libBuilding();
+
+  I.spot = rect(26, 64, 10, 22, 3, RED) + rect(64, 64, 10, 22, 3, RED) + rect(34, 64, 32, 26, 8, "#ffd54f") +
+    line("M40 66L40 84M60 66L60 84", RED, 4) +
+    ell(24, 44, 9, 17, "#f9a825") + ell(76, 44, 9, 17, "#f9a825") + ell(50, 44, 25, 23, "#ffd54f") +
+    circ(40, 30, 4.5, "#f9a825", NS) + circ(60, 33, 3.5, "#f9a825", NS) +
+    eyes(41, 59, 40) + ell(50, 50, 6, 4.5, INK, NS) + path("M44 57Q50 66 56 57Z", "#f48fb1", 'stroke-width="2.2"');
+
+  I.books = rect(14, 66, 72, 18, 3, RED) + line("M22 66V84", "#ffcdd2", 3) + rect(78, 70, 5, 10, 0, WHT, NS) +
+    rect(22, 48, 60, 18, 3, BLUE) + line("M30 48V66", "#bbdefb", 3) + rect(74, 52, 5, 10, 0, WHT, NS) +
+    rect(10, 30, 62, 18, 3, GRN) + line("M18 30V48", "#c8e6c9", 3) + rect(64, 34, 5, 10, 0, WHT, NS) +
+    star(82, 20, 6, YEL);
+
+  I.story = path("M50 40Q34 30 12 34V80Q34 76 50 86Z", WHT) + path("M50 40Q66 30 88 34V80Q66 76 50 86Z", "#fff8e1") +
+    line("M20 46Q34 44 42 50M20 56Q34 54 42 60M20 66Q34 64 42 70", "#90a4ae", 2) + line("M80 46Q66 44 58 50M80 56Q66 54 58 60M80 66Q66 64 58 70", "#90a4ae", 2) +
+    star(50, 16, 8, YEL) + star(22, 20, 5, "#80deea") + star(78, 20, 5, "#f48fb1") + circ(34, 10, 2, YEL, NS) + circ(68, 8, 2, "#80deea", NS);
+
+  I.reading = readKid();
+
+  I.friends = [[-4, "#ef5350", "#5c6bc0"], [22, "#ffb74d", "#455a64"], [48, "#42a5f5", "#7e57c2"]].map(([x, b, l]) => sm(x, 22, .56, kid({body: b, legs: l, arms: "out"}))).join("") +
+    sm(37, 4, .26, heart(RED, 7)) + line("M8 82H92", GRN, 3);
+
+  I.favorite = star5(50, 48, 38, YEL) + sm(38, 33, .24, heart(RED, 8)) + circ(14, 14, 2.5, "#80deea", NS) + circ(88, 16, 2.5, "#f48fb1", NS) + circ(88, 86, 2.5, "#80deea", NS) + circ(12, 84, 2.5, "#f48fb1", NS);
+
+  I.mrs_rabbit = ell(38, 22, 7, 15, "#cfd8dc") + ell(62, 22, 7, 15, "#cfd8dc") + ell(38, 24, 3, 10, "#f8bbd0", NS) + ell(62, 24, 3, 10, "#f8bbd0", NS) +
+    rect(33, 60, 34, 28, 10, "#f8bbd0") + [[41, 68], [58, 69], [50, 78], [40, 82], [60, 82]].map(([x, y]) => circ(x, y, 2.6, "#ec407a", NS)).join("") +
+    circ(50, 46, 17, "#cfd8dc") + eyes(43, 57, 43) + ell(50, 50, 3.4, 2.6, "#f48fb1", 'stroke-width="2"') + line("M50 53Q47 57 44 55M50 53Q53 57 56 55", INK, 2) +
+    line("M28 50H38M28 56L37 54M72 50H62M72 56L63 54", "#78909c", 1.8);
+
+  I.come = sm(18, 6, .8, kid({body: "#ffa726", legs: "#5c6bc0", mouth: "open", armL: [37, 48, 33, 64], armR: [63, 48, 80, 30]})) +
+    path("M6 58H22V50L34 62L22 74V66H6Z", SKY) + line("M89 22Q94 30 89 38", ORG, 3);
+
+  I.made = `<g transform="rotate(25 22 60)">` + rect(18, 40, 8, 44, 2, BRN) + rect(8, 32, 28, 14, 3, GRY) + `</g>` +
+    path("M48 44L67 26L86 44Z", RED) + rect(52, 44, 30, 28, 2, "#ffcc80") + circ(67, 57, 5, INK, NS) + rect(64, 72, 6, 18, 0, BRN) +
+    star(86, 14, 5, YEL);
+
+  I.s_favplace = sm(8, 22, .7, libBuilding()) + star5(82, 24, 13, YEL) + sm(76, 58, .24, heart(RED, 8));
+
+  I.s_readstory = sm(-8, 18, .78, readKid()) + ell(76, 30, 18, 14, WHT) + path("M62 38L46 46L68 42Z", WHT) + star(76, 30, 8, YEL) + circ(88, 52, 2.5, "#80deea", NS);
+
+  I.s_borrow = sm(-8, 12, .8, kid({body: "#ab47bc", legs: "#455a64", armL: [37, 48, 33, 64], armR: [63, 48, 80, 50]})) +
+    rect(62, 62, 30, 26, 2, "#a1887f") + rect(58, 56, 38, 8, 2, BRN) + rect(52, 38, 16, 22, 2, RED) + line("M57 38V60", "#ffcdd2", 2.5);
+
   const wrap = body => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img">${body}</svg>`;
   const out = {};
   Object.keys(I).forEach(k => { out[k] = wrap(I[k]); });

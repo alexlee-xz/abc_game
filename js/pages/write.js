@@ -6,7 +6,7 @@ const wrFont = s => `700 ${s}px "Arial Rounded MT Bold","Trebuchet MS",Verdana,s
 const WR_COVER = 0.55, WR_STRAY = 0.4;     // 至少描到字形的 55%，画在字外面的不超过 40%
 
 function writeStart(){
-  const words = unitWords(lesson).filter(it => /^[a-z][a-z' -]*$/i.test(it.en));
+  const words = unitWords(lesson).filter(it => /^[a-z][a-z'. -]*$/i.test(it.en));
   if(!words.length) return;
   Wr = {words, i: 0, stars: 0};
   writeShow();

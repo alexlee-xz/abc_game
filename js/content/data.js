@@ -81,6 +81,27 @@ const LESSONS = [
       {"id": "s_icecream", "en": "The ice cream truck sells ice cream.", "zh": "冰淇淋车卖冰淇淋。", "emoji": "🍦🚚", "sentence": true},
       {"id": "s_belt", "en": "Fasten your seat belt.", "zh": "系好安全带。", "emoji": "🚗💺", "sentence": true}
     ]
+  },
+  {
+    "id": "unit5",
+    "title": "At the Library",
+    "zh": "图书馆",
+    "icon": "📚",
+    "items": [
+      {"id": "library", "en": "library", "ipa": "ˈlaɪbreri", "zh": "图书馆", "emoji": "🏛️"},
+      {"id": "spot", "en": "Spot", "ipa": "spɑːt", "zh": "小狗斯波特", "emoji": "🐶"},
+      {"id": "books", "en": "books", "ipa": "bʊks", "zh": "书", "emoji": "📚"},
+      {"id": "story", "en": "story", "ipa": "ˈstɔːri", "zh": "故事", "emoji": "📖"},
+      {"id": "reading", "en": "reading", "ipa": "ˈriːdɪŋ", "zh": "阅读", "emoji": "🧒📖"},
+      {"id": "friends", "en": "friends", "ipa": "frendz", "zh": "朋友们", "emoji": "🧑‍🤝‍🧑"},
+      {"id": "favorite", "en": "favorite", "ipa": "ˈfeɪvərɪt", "zh": "最喜欢的", "emoji": "⭐"},
+      {"id": "mrs_rabbit", "en": "Mrs. Rabbit", "ipa": "ˈmɪsɪz ˈræbɪt", "zh": "兔太太", "emoji": "🐰"},
+      {"id": "come", "en": "come", "ipa": "kʌm", "zh": "来", "emoji": "👋", "game": false},
+      {"id": "made", "en": "made", "ipa": "meɪd", "zh": "做了（make 的过去式）", "emoji": "🛠️", "game": false},
+      {"id": "s_favplace", "en": "The library is my favorite place.", "zh": "图书馆是我最喜欢的地方。", "emoji": "🏛️⭐", "sentence": true},
+      {"id": "s_readstory", "en": "reading a story", "zh": "读故事", "emoji": "🧒📖", "sentence": true},
+      {"id": "s_borrow", "en": "borrowing a book", "zh": "借书", "emoji": "🙋📕", "sentence": true}
+    ]
   }
 ];
 
@@ -144,7 +165,15 @@ const ACTS = {
   "garbage_truck":   {"en": "Put the trash in the garbage truck!", "zh": "把一张废纸扔进垃圾桶"},
   "fire_engine":     {"en": "Here comes the fire engine! Wee-woo!", "zh": "一边跑一边学消防车“呜哇呜哇”"},
   "ice_cream_truck": {"en": "Ice cream, please!", "zh": "假装向冰淇淋车买一个冰淇淋"},
-  "electric_car":    {"en": "Plug in the electric car!", "zh": "假装给电动汽车插上充电线"}
+  "electric_car":    {"en": "Plug in the electric car!", "zh": "假装给电动汽车插上充电线"},
+  "library":         {"en": "Shh! Be quiet in the library!", "zh": "手指放在嘴边，轻轻地走路"},
+  "spot":            {"en": "Woof, woof! Be Spot the dog!", "zh": "扮成小狗 Spot，汪汪叫"},
+  "books":           {"en": "Stack the books!", "zh": "把几本书叠起来，别让它倒"},
+  "story":           {"en": "Tell me a story!", "zh": "编一个小故事讲给大家听"},
+  "reading":         {"en": "Let's read a book!", "zh": "拿起一本书，翻开读一读"},
+  "friends":         {"en": "Wave to your friends!", "zh": "向朋友们挥挥手"},
+  "favorite":        {"en": "Show me your favorite book!", "zh": "拿出自己最喜欢的一本书"},
+  "mrs_rabbit":      {"en": "Hop like Mrs. Rabbit!", "zh": "像兔太太一样蹦蹦跳"}
 };
 
 // 故事专用句子（只用在“听故事排顺序”里，不进单元练习、不进复习）。语音：audio/en/<id>.mp3（tools/gen_audio.py 生成）。
@@ -203,7 +232,23 @@ const STORY_LINES = [
   {"id": "s_towstuck", "en": "The car cannot move.", "emoji": "🚗🛑"},
   {"id": "s_towcome", "en": "The tow truck comes.", "emoji": "🛻💨"},
   {"id": "s_pull", "en": "Pull, pull, pull!", "emoji": "🪢💪"},
-  {"id": "s_free", "en": "The car can go!", "emoji": "🚗🏁"}
+  {"id": "s_free", "en": "The car can go!", "emoji": "🚗🏁"},
+  {"id": "s_lgo", "en": "We go to the library.", "emoji": "🚶🏛️"},
+  {"id": "s_lsee", "en": "I see many books.", "emoji": "👀📚"},
+  {"id": "s_lpick", "en": "I pick a book.", "emoji": "🫳📕"},
+  {"id": "s_lhome", "en": "I take it home.", "emoji": "🏠📖"},
+  {"id": "s_spotlib", "en": "Spot goes to the library.", "emoji": "🐶🏛️"},
+  {"id": "s_spotsit", "en": "Spot sits down.", "emoji": "🐶🪑"},
+  {"id": "s_spotread", "en": "Spot is reading a story.", "emoji": "🐶📖"},
+  {"id": "s_spothappy", "en": "Spot is happy!", "emoji": "🐶🎉"},
+  {"id": "s_mrsr", "en": "Mrs. Rabbit is here.", "emoji": "🐰📍"},
+  {"id": "s_mrscome", "en": "Her friends come.", "emoji": "👫🚶"},
+  {"id": "s_mrsmade", "en": "Mrs. Rabbit made a bookmark.", "emoji": "🐰🔖"},
+  {"id": "s_mrsread", "en": "Mrs. Rabbit reads a story.", "emoji": "🐰📚"},
+  {"id": "s_shelf", "en": "So many books!", "emoji": "📚😲"},
+  {"id": "s_favfind", "en": "I find my favorite!", "emoji": "⭐🔍"},
+  {"id": "s_favread", "en": "I read it again.", "emoji": "🔁📖"},
+  {"id": "s_favbook", "en": "It is my favorite book!", "emoji": "🥰📗"}
 ];
 
 // 听故事排顺序：need 里的词（单词 id）都学过（等级≥1）后解锁；没写 need 就是 unit 里的全部词。lines 是故事的句子 id（按故事顺序，可以用 LESSONS 里的句子，也可以用 STORY_LINES）。
@@ -224,7 +269,11 @@ const STORIES = [
   {"id": "taxi", "title": "坐出租车", "need": ["taxi"], "lines": ["s_wait", "s_taxi", "s_belt", "s_arrive"]},
   {"id": "garbage", "title": "垃圾车来啦", "need": ["garbage_truck"], "lines": ["s_dirty", "s_gcome", "s_garbage", "s_clean"]},
   {"id": "icecream", "title": "冰淇淋车", "need": ["ice_cream_truck"], "lines": ["s_song", "s_iccome", "s_icecream", "s_yum"]},
-  {"id": "tow", "title": "拖车来帮忙", "need": ["tow_truck", "car"], "lines": ["s_towstuck", "s_towcome", "s_pull", "s_free"]}
+  {"id": "tow", "title": "拖车来帮忙", "need": ["tow_truck", "car"], "lines": ["s_towstuck", "s_towcome", "s_pull", "s_free"]},
+  {"id": "library", "title": "去图书馆", "need": ["library", "books"], "lines": ["s_lgo", "s_lsee", "s_lpick", "s_lhome"]},
+  {"id": "spotread", "title": "小点读故事", "need": ["spot", "story", "reading"], "lines": ["s_spotlib", "s_spotsit", "s_spotread", "s_spothappy"]},
+  {"id": "rabbit", "title": "兔太太的故事会", "need": ["mrs_rabbit", "friends"], "lines": ["s_mrsr", "s_mrscome", "s_mrsmade", "s_mrsread", "s_clap"]},
+  {"id": "favbook", "title": "最喜欢的书", "need": ["favorite", "books"], "lines": ["s_shelf", "s_favfind", "s_favread", "s_favbook"]}
 ];
 
 // 容易混淆的词（按词的英文小写）。词长到 🌿 以上、改成 4 选 1 时，干扰项优先从这里挑。双向生效，写一边就行。
@@ -237,7 +286,9 @@ const CONFUSE = {
   "family": ["home"], "hug": ["love"], "care": ["kind"], "special": ["forever"],
   "car": ["truck", "taxi"], "truck": ["garbage truck", "tow truck"], "race car": ["car", "taxi"],
   "garbage truck": ["tow truck", "ice cream truck"], "tow truck": ["fire engine"], "fire engine": ["fire station"],
-  "electric car": ["car", "race car"], "ice cream truck": ["truck"]
+  "electric car": ["car", "race car"], "ice cream truck": ["truck"],
+  "books": ["story", "library"], "reading": ["story"], "library": ["home"], "spot": ["mrs. rabbit"],
+  "friends": ["family"], "favorite": ["special"]
 };
 
 // 家长小任务：每个词在生活里怎么用一用（按词的英文小写）
@@ -277,5 +328,13 @@ const TIPS = {
   "garbage truck": "倒垃圾、看到环卫车时说：Garbage truck! 让孩子说 Bye-bye, trash!",
   "fire engine": "看到消防车或听到警笛声时说：Fire engine! 让孩子学“呜哇呜哇”。",
   "ice cream truck": "看到卖冰淇淋的小车或吃冰淇淋时说：Ice cream truck!",
-  "electric car": "看到充电桩或电动汽车时说：Electric car! 说说它为什么很安静。"
+  "electric car": "看到充电桩或电动汽车时说：Electric car! 说说它为什么很安静。",
+  "library": "带孩子去图书馆或看到图书馆时说：Library! 提醒他在里面要小声说话。",
+  "spot": "孩子读绘本时指着小狗 Spot 问：Who is it? 让孩子说 Spot。",
+  "books": "整理书架或书包时说：Books! 让孩子数一数有几本 books。",
+  "story": "睡前讲故事时说：Story time! 让孩子也说说今天想听哪个 story。",
+  "reading": "和孩子一起看书时说：Reading! 轮流读一页。",
+  "friends": "看到小伙伴时说：Friends! 让孩子介绍自己的 friends。",
+  "favorite": "问孩子：What's your favorite book? 让孩子拿出最喜欢的那本说 favorite。",
+  "mrs. rabbit": "看绘本里的兔子时问孩子：Who is it? 引导他说 Mrs. Rabbit。"
 };
