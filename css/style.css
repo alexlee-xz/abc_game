@@ -39,6 +39,7 @@
   /* 单元列表 */
   .card.ucard{cursor:pointer; min-height:150px; padding:16px 6px}
   .uicon{font-size:46px; line-height:1.2}
+  .uicon svg, h1 svg{width:1em; height:1em; vertical-align:middle}
   .ucard .en{font-size:17px; margin-top:4px}
   .uprog{font-size:13px; color:#e65100; margin-top:8px; background:#fff3e0; border-radius:12px; padding:3px 10px}
   .uprog.full{color:#2e7d32; background:#e8f5e9}

@@ -861,6 +861,7 @@ const capNew = () => ev(`SRS.daily = {day: todayNum(), newCount: 99, done: false
       assert(/viewBox="0 0 100 100"/.test(svg) && !/\swidth=|\sheight=/.test(svg.match(/<svg[^>]*>/)[0].replace(/stroke-width=/g, "")), it.id + ": sized by CSS");
       used.add(ev(`ART_ALIAS[${JSON.stringify(it.id)}] || ${JSON.stringify(it.id)}`));
     });
+    ev(`LESSONS`).forEach(l => { if(ev(`ART`)["icon_" + l.id]) { assert(l.icon === ev(`ART`)["icon_" + l.id], l.id + " icon uses the illustration"); used.add("icon_" + l.id); } });
     Object.keys(ev(`ART`)).forEach(k => assert(used.has(k), "unused illustration " + k));
     // shapes inside one picture are balanced: every opened tag is self-closed or closed
     Object.entries(J(ev(`ART`))).forEach(([k, svg]) => {

@@ -484,11 +484,19 @@ const ART = (function(){
     front: line("M71 60V90", BRN, 3.5)})) +
     sm(46, 34, .56, kid({body: "#ffb74d", legs: "#5c6bc0", mouth: "open"}));
 
-  I.s_famtree = rect(44, 58, 12, 34, 2, BRN) +
-    [[50, 32, 26], [28, 46, 18], [72, 46, 18]].map(([x, y, r]) => circ(x, y, r, "#66bb6a")).join("") +
-    [[50, 32, 26], [28, 46, 18], [72, 46, 18]].map(([x, y, r]) => circ(x, y, r, "#66bb6a", NS)).join("") +
-    [[31, 22], [56, 22], [18, 44], [66, 44]].map(([x, y]) => rect(x, y, 15, 15, 2, "#fff8e1", 'stroke-width="2"') + circ(x + 7.5, y + 7.5, 4.2, SKIN, 'stroke-width="1.5"')).join("") +
-    line("M20 92H80", GRN, 3);
+  // 家谱树：四位老人是树根，爸爸妈妈在树枝上，孩子在顶上的叶冠里
+  const cap = (x, y, r, col) => path(`M${n(x - r)} ${n(y - 1)}Q${n(x - r)} ${n(y - r - 1)} ${x} ${n(y - r - 1)}Q${n(x + r)} ${n(y - r - 1)} ${n(x + r)} ${n(y - 1)}Q${x} ${n(y - r * .5)} ${n(x - r)} ${n(y - 1)}Z`, col, 'stroke-width="2"');
+  const person = (x, y, r, hair) => faceAt(x, y, r) + cap(x, y, r, hair);
+  const crown = [[28, 29, 14], [72, 29, 14], [50, 22, 16]];
+  I.s_famtree = line("M50 69L39 80M50 69L61 80M50 69Q30 70 16 80M50 69Q70 70 84 80", BRN, 4) + line("M8 69H92", GRN, 3) +
+    path("M43 40H57L59 69H41Z", BRN) + line("M50 56L30 54M50 56L70 54", BRN, 5) +
+    crown.map(([x, y, r]) => circ(x, y, r, "#66bb6a")).join("") + crown.map(([x, y, r]) => circ(x, y, r, "#66bb6a", NS)).join("") +
+    [[16, 86, "#cfd8dc"], [39, 86, "#b0bec5"], [61, 86, "#cfd8dc"], [84, 86, "#b0bec5"]].map(([x, y, h]) => person(x, y, 8, h)).join("") +
+    person(22, 54, 9, "#6d4c41") + person(78, 54, 9, "#37474f") + person(50, 24, 11, "#ffb300");
+
+  // 单元列表里的“我和我的家人”图标：爸爸、妈妈和中间举手的孩子
+  I.icon_unit6 = sm(-10, 12, .66, I.daddy) + sm(44, 12, .66, I.mommy) + sm(37, -1, .26, heart(RED, 8)) +
+    sm(20, 36, .6, kid({body: "#fdd835", legs: "#5c6bc0", mouth: "open", arms: "up"}));
 
   I.s_fourpeople = sm(36, 4, .28, heart(RED, 7)) +
     [[-8, "#42a5f5"], [15, "#f06292"], [39, "#ffb74d"], [62, "#66bb6a"]].map(([x, b]) => sm(x, 26, .46, kid({body: b, legs: "#455a64"}))).join("") +
@@ -508,5 +516,8 @@ const ART_ALIAS = {firefighter2: "firefighter", family2: "family"};
 const artFor = id => ART[ART_ALIAS[id] || id] || null;
 (function applyArt(){
   if(typeof LESSONS === "undefined") return;
-  LESSONS.forEach(l => l.items.forEach(it => { const svg = artFor(it.id); if(svg) it.emoji = svg; }));
+  LESSONS.forEach(l => {
+    l.items.forEach(it => { const svg = artFor(it.id); if(svg) it.emoji = svg; });
+    if(ART["icon_" + l.id]) l.icon = ART["icon_" + l.id];
+  });
 })();
