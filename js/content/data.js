@@ -102,6 +102,39 @@ const LESSONS = [
       {"id": "s_readstory", "en": "reading a story", "zh": "读故事", "emoji": "🧒📖", "sentence": true},
       {"id": "s_borrow", "en": "borrowing a book", "zh": "借书", "emoji": "🙋📕", "sentence": true}
     ]
+  },
+  {
+    "id": "unit6",
+    "title": "Me and My Family",
+    "zh": "我和我的家人",
+    "icon": "👨‍👩‍👧‍👦",
+    "items": [
+      {"id": "me", "en": "me", "ipa": "miː", "zh": "我", "emoji": "🙋"},
+      {"id": "mommy", "en": "mommy", "ipa": "ˈmɑːmi", "zh": "妈妈", "emoji": "👩"},
+      {"id": "daddy", "en": "daddy", "ipa": "ˈdædi", "zh": "爸爸", "emoji": "👨"},
+      {"id": "brother", "en": "brother", "ipa": "ˈbrʌðər", "zh": "哥哥/弟弟", "emoji": "👦"},
+      {"id": "sister", "en": "sister", "ipa": "ˈsɪstər", "zh": "姐姐/妹妹", "emoji": "👧"},
+      {"id": "family2", "en": "family", "ipa": "ˈfæməli", "zh": "家人", "emoji": "👨‍👩‍👧", "game": false},
+      {"id": "clap", "en": "clap", "ipa": "klæp", "zh": "拍手", "emoji": "👏"},
+      {"id": "snap", "en": "snap", "ipa": "snæp", "zh": "打响指", "emoji": "🫰"},
+      {"id": "pat", "en": "pat", "ipa": "pæt", "zh": "轻轻拍", "emoji": "🤚"},
+      {"id": "stomp", "en": "stomp", "ipa": "stɑːmp", "zh": "跺脚", "emoji": "🦶"},
+      {"id": "s_lion", "en": "I am a lion.", "zh": "我是一头狮子。", "emoji": "🦁", "sentence": true},
+      {"id": "s_princess", "en": "I am a princess.", "zh": "我是一位公主。", "emoji": "👸", "sentence": true},
+      {"id": "s_robot", "en": "I am a robot.", "zh": "我是一个机器人。", "emoji": "🤖", "sentence": true},
+      {"id": "s_bee", "en": "I am a bee.", "zh": "我是一只蜜蜂。", "emoji": "🐝", "sentence": true},
+      {"id": "s_justme", "en": "I am just me.", "zh": "我就是我。", "emoji": "🙋💖", "sentence": true},
+      {"id": "s_beefly", "en": "The bee can fly.", "zh": "蜜蜂会飞。", "emoji": "🐝💨", "sentence": true},
+      {"id": "s_butterflyfly", "en": "The butterfly can fly.", "zh": "蝴蝶会飞。", "emoji": "🦋💨", "sentence": true},
+      {"id": "s_eaglefly", "en": "The eagle can fly.", "zh": "老鹰会飞。", "emoji": "🦅💨", "sentence": true},
+      {"id": "s_batfly", "en": "The bat can fly.", "zh": "蝙蝠会飞。", "emoji": "🦇💨", "sentence": true},
+      {"id": "s_kitefly", "en": "The kite can fly.", "zh": "风筝会飞。", "emoji": "🪁💨", "sentence": true},
+      {"id": "s_flies", "en": "It flies in the sky!", "zh": "它在天空中飞！", "emoji": "☁️🕊️", "sentence": true},
+      {"id": "s_oldyoung", "en": "old & young", "zh": "老人和年轻人", "emoji": "👴🧒", "sentence": true},
+      {"id": "s_famtree", "en": "family tree", "zh": "家谱树", "emoji": "🌳👪", "sentence": true},
+      {"id": "s_fourpeople", "en": "There are 4 people in my family.", "zh": "我家有 4 口人。", "emoji": "4️⃣👪", "sentence": true},
+      {"id": "s_lovefam", "en": "I love my family.", "zh": "我爱我的家人。", "emoji": "❤️👪", "sentence": true}
+    ]
   }
 ];
 
@@ -173,7 +206,16 @@ const ACTS = {
   "reading":         {"en": "Let's read a book!", "zh": "拿起一本书，翻开读一读"},
   "friends":         {"en": "Wave to your friends!", "zh": "向朋友们挥挥手"},
   "favorite":        {"en": "Show me your favorite book!", "zh": "拿出自己最喜欢的一本书"},
-  "mrs_rabbit":      {"en": "Hop like Mrs. Rabbit!", "zh": "像兔太太一样蹦蹦跳"}
+  "mrs_rabbit":      {"en": "Hop like Mrs. Rabbit!", "zh": "像兔太太一样蹦蹦跳"},
+  "me":              {"en": "Point to me!", "zh": "用手指指自己的鼻子"},
+  "mommy":           {"en": "Wave to mommy!", "zh": "向妈妈挥挥手"},
+  "daddy":           {"en": "High five, daddy!", "zh": "和爸爸击个掌"},
+  "brother":         {"en": "Hug your brother!", "zh": "和哥哥或弟弟抱一抱"},
+  "sister":          {"en": "Hold hands with your sister!", "zh": "和姐姐或妹妹拉拉手"},
+  "clap":            {"en": "Clap, clap, clap!", "zh": "拍拍手，一共三下"},
+  "snap":            {"en": "Snap, snap, snap!", "zh": "打三个响指"},
+  "pat":             {"en": "Pat your head!", "zh": "轻轻拍拍自己的头"},
+  "stomp":           {"en": "Stomp, stomp, stomp!", "zh": "用力跺三下脚"}
 };
 
 // 故事专用句子（只用在“听故事排顺序”里，不进单元练习、不进复习）。语音：audio/en/<id>.mp3（tools/gen_audio.py 生成）。
@@ -248,7 +290,15 @@ const STORY_LINES = [
   {"id": "s_shelf", "en": "So many books!", "emoji": "📚😲"},
   {"id": "s_favfind", "en": "I find my favorite!", "emoji": "⭐🔍"},
   {"id": "s_favread", "en": "I read it again.", "emoji": "🔁📖"},
-  {"id": "s_favbook", "en": "It is my favorite book!", "emoji": "🥰📗"}
+  {"id": "s_favbook", "en": "It is my favorite book!", "emoji": "🥰📗"},
+  {"id": "s_gm", "en": "Good morning, Mommy!", "emoji": "🌞👩"},
+  {"id": "s_gd", "en": "Good morning, Daddy!", "emoji": "🌅👨"},
+  {"id": "s_gb", "en": "Hello, brother!", "emoji": "👋👦"},
+  {"id": "s_gs", "en": "Hello, sister!", "emoji": "👋👧"},
+  {"id": "s_dclap", "en": "Clap, clap, clap!", "emoji": "👏🎶"},
+  {"id": "s_dsnap", "en": "Snap, snap, snap!", "emoji": "🫰✨"},
+  {"id": "s_dpat", "en": "Pat, pat, pat!", "emoji": "🤚🙆"},
+  {"id": "s_dstomp", "en": "Stomp, stomp, stomp!", "emoji": "🦶💥"}
 ];
 
 // 听故事排顺序：need 里的词（单词 id）都学过（等级≥1）后解锁；没写 need 就是 unit 里的全部词。lines 是故事的句子 id（按故事顺序，可以用 LESSONS 里的句子，也可以用 STORY_LINES）。
@@ -273,7 +323,11 @@ const STORIES = [
   {"id": "library", "title": "去图书馆", "need": ["library", "books"], "lines": ["s_lgo", "s_lsee", "s_lpick", "s_lhome"]},
   {"id": "spotread", "title": "小点读故事", "need": ["spot", "story", "reading"], "lines": ["s_spotlib", "s_spotsit", "s_spotread", "s_spothappy"]},
   {"id": "rabbit", "title": "兔太太的故事会", "need": ["mrs_rabbit", "friends"], "lines": ["s_mrsr", "s_mrscome", "s_mrsmade", "s_mrsread", "s_clap"]},
-  {"id": "favbook", "title": "最喜欢的书", "need": ["favorite", "books"], "lines": ["s_shelf", "s_favfind", "s_favread", "s_favbook"]}
+  {"id": "favbook", "title": "最喜欢的书", "need": ["favorite", "books"], "lines": ["s_shelf", "s_favfind", "s_favread", "s_favbook"]},
+  {"id": "morning", "title": "早上好，一家人", "need": ["mommy", "daddy", "brother", "sister"], "lines": ["s_gm", "s_gd", "s_gb", "s_gs", "s_lovefam"]},
+  {"id": "move", "title": "拍手跺脚", "need": ["clap", "snap", "pat", "stomp"], "lines": ["s_dclap", "s_dsnap", "s_dpat", "s_dstomp"]},
+  {"id": "whoami", "title": "我是谁", "need": ["me"], "lines": ["s_lion", "s_princess", "s_robot", "s_justme"]},
+  {"id": "flyers", "title": "会飞的朋友", "unit": "unit6", "lines": ["s_beefly", "s_butterflyfly", "s_eaglefly", "s_batfly", "s_kitefly", "s_flies"]}
 ];
 
 // 容易混淆的词（按词的英文小写）。词长到 🌿 以上、改成 4 选 1 时，干扰项优先从这里挑。双向生效，写一边就行。
@@ -288,7 +342,8 @@ const CONFUSE = {
   "garbage truck": ["tow truck", "ice cream truck"], "tow truck": ["fire engine"], "fire engine": ["fire station"],
   "electric car": ["car", "race car"], "ice cream truck": ["truck"],
   "books": ["story", "library"], "reading": ["story"], "library": ["home"], "spot": ["mrs. rabbit"],
-  "friends": ["family"], "favorite": ["special"]
+  "friends": ["family"], "favorite": ["special"],
+  "mommy": ["daddy", "sister"], "daddy": ["brother"], "brother": ["sister"], "clap": ["snap", "pat"], "stomp": ["pat"]
 };
 
 // 家长小任务：每个词在生活里怎么用一用（按词的英文小写）
@@ -336,5 +391,14 @@ const TIPS = {
   "reading": "和孩子一起看书时说：Reading! 轮流读一页。",
   "friends": "看到小伙伴时说：Friends! 让孩子介绍自己的 friends。",
   "favorite": "问孩子：What's your favorite book? 让孩子拿出最喜欢的那本说 favorite。",
-  "mrs. rabbit": "看绘本里的兔子时问孩子：Who is it? 引导他说 Mrs. Rabbit。"
+  "mrs. rabbit": "看绘本里的兔子时问孩子：Who is it? 引导他说 Mrs. Rabbit。",
+  "me": "孩子指着镜子或照片里的自己时说：Me! 让他也说 It's me.",
+  "mommy": "看到妈妈或全家福时问：Who is it? 引导孩子说 Mommy。",
+  "daddy": "爸爸回家时让孩子迎上去说：Daddy! 再抱一抱。",
+  "brother": "指着哥哥、弟弟或绘本里的男孩说：Brother! 让孩子跟读。",
+  "sister": "指着姐姐、妹妹或绘本里的女孩说：Sister! 让孩子跟读。",
+  "clap": "边唱歌边拍手：Clap, clap, clap! 让孩子跟着节奏拍。",
+  "snap": "教孩子打响指：Snap, snap! 打不响也没关系，先练手指。",
+  "pat": "轻轻拍拍孩子的头或肩膀说：Pat, pat! 再让孩子拍拍你。",
+  "stomp": "一起在地上用力跺脚：Stomp, stomp! 像大象走路一样。"
 };

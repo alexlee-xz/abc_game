@@ -386,6 +386,112 @@ const ART = (function(){
   I.s_borrow = sm(-8, 12, .8, kid({body: "#ab47bc", legs: "#455a64", armL: [37, 48, 33, 64], armR: [63, 48, 80, 50]})) +
     rect(62, 62, 30, 26, 2, "#a1887f") + rect(58, 56, 38, 8, 2, BRN) + rect(52, 38, 16, 22, 2, RED) + line("M57 38V60", "#ffcdd2", 2.5);
 
+  /* ---------- 第六单元：我和我的家人 ---------- */
+  const dress = col => path("M36 44H64L74 76Q50 84 26 76Z", col);
+  const hairLong = col => path("M34 28Q34 8 50 8Q66 8 66 28V44Q60 44 60 36Q60 22 50 22Q40 22 40 36Q40 44 34 44Z", col);
+  const hairShort = col => path("M35 24Q36 10 50 10Q64 10 65 24Q58 17 50 17Q42 17 35 24Z", col);
+  const faceAt = (x, y, r) => circ(x, y, r, SKIN, 'stroke-width="2.5"') + circ(n(x - r * .38), n(y - r * .1), 1.6, INK, NS) + circ(n(x + r * .38), n(y - r * .1), 1.6, INK, NS) +
+    path(`M${n(x - r * .35)} ${n(y + r * .4)}Q${x} ${n(y + r * .85)} ${n(x + r * .35)} ${n(y + r * .4)}`, "none", 'stroke-width="2"');
+  const cloud = () => path("M24 66Q10 66 12 54Q14 44 28 46Q32 32 48 36Q58 26 70 38Q86 36 88 50Q96 56 88 66Z", WHT);
+  const flyLines = () => line("M6 50H14M5 60H12M8 70H14", SKY, 3);
+
+  I.me = circ(38, 50, 28, SKIN) +
+    path("M12 44Q10 16 38 14Q66 16 64 44Q54 30 38 30Q22 30 12 44Z", "#6d4c41") +
+    circ(24, 58, 4.5, "#ffab91", NS) + circ(52, 58, 4.5, "#ffab91", NS) + circ(30, 48, 3, INK, NS) + circ(46, 48, 3, INK, NS) +
+    path("M29 61Q38 70 47 61", "none", 'stroke-width="3"') +
+    path("M70 52L83 42V48H94V56H83V62Z", SKY) + sm(70, 4, .2, heart(RED, 8));
+
+  I.mommy = kid({body: "#f06292", legs: "#455a64", torso: dress("#f06292"), hair: hairLong("#6d4c41"),
+    front: sm(44, 50, .12, heart(WHT, 8))});
+
+  I.daddy = kid({body: BLUE, legs: "#37474f", hair: hairShort("#37474f"), glasses: true,
+    front: path("M50 44L46 50L50 63L54 50Z", RED, 'stroke-width="2"') + rect(36, 66, 28, 4, 0, "#37474f", NS)});
+
+  I.brother = kid({body: "#fdd835", legs: "#5c6bc0", hat: dome(RED, "#c62828"), mouth: "open", arms: "out"});
+
+  I.sister = kid({body: "#ba68c8", legs: "#7e57c2", torso: dress("#ba68c8"), arms: "out",
+    hair: hairShort("#8d6e63") + circ(31, 25, 6, "#8d6e63") + circ(69, 25, 6, "#8d6e63") + circ(35, 18, 3, RED, 'stroke-width="2"') + circ(65, 18, 3, RED, 'stroke-width="2"')});
+
+  I.clap = kid({body: "#ff8a65", legs: "#5c6bc0", mouth: "open", armL: [37, 48, 46, 57], armR: [63, 48, 54, 57],
+    back: line("M30 38L22 32M70 38L78 32M26 52L16 52M74 52L84 52", ORG, 3) + star(18, 14, 4, YEL) + star(82, 14, 4, YEL)});
+
+  I.snap = kid({body: "#7e57c2", legs: "#455a64", armL: [37, 48, 29, 65], armR: [63, 48, 70, 34],
+    front: line("M78 28L85 21M80 37L90 35M72 24V15", ORG, 3)});
+
+  I.pat = kid({body: "#26a69a", legs: "#455a64", armL: [37, 48, 31, 21], armR: [63, 48, 54, 60],
+    front: line("M18 14L23 18M22 7L25 13M14 24L20 25", ORG, 3)});
+
+  I.stomp = kid({body: "#ef5350", legs: "#455a64", mouth: "open", legL: [44, 69, 44, 89], legR: [56, 69, 74, 76],
+    back: line("M32 90L22 86M31 94L21 94M58 94L66 90", ORG, 3) + line("M84 62L90 56M86 72L92 70", ORG, 3)});
+
+  // “I am a ...”：小朋友穿上扮演的服装
+  I.s_lion = kid({body: "#ffb74d", legs: "#ef6c00", mouth: "open",
+    back: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(k => circ(n(50 + 17 * Math.cos(k * Math.PI / 5)), n(27 + 17 * Math.sin(k * Math.PI / 5)), 5, "#e65100")).join("") +
+      line("M64 78Q82 78 82 62", "#e65100", 4) + circ(82, 60, 4.5, "#e65100", 'stroke-width="2"'),
+    front: ell(50, 31, 3, 2.2, "#6d4c41", NS)});
+
+  I.s_princess = kid({body: "#4fc3f7", legs: "#455a64", arms: "out", torso: path("M38 44H62L84 80Q50 90 16 80Z", "#4fc3f7") + path("M30 70Q50 78 70 70", "none", 'stroke="#e1f5fe" stroke-width="2.5"'), hair: hairLong("#ffb300"),
+    hat: path("M38 14L40 4L45 10L50 3L55 10L60 4L62 14Z", YEL, 'stroke-width="2.5"'),
+    front: line("M79 53L86 34", BRN, 3) + star(87, 29, 6, YEL)});
+
+  I.s_robot = kid({body: "#90a4ae", legs: "#546e7a", skin: "#b0bec5",
+    torso: rect(34, 43, 32, 28, 3, "#90a4ae") + circ(44, 54, 3, RED, 'stroke-width="2"') + circ(56, 54, 3, GRN, 'stroke-width="2"') + rect(42, 61, 16, 5, 1, YEL, 'stroke-width="2"'),
+    hat: line("M50 12V8", INK, 3) + circ(50, 7, 3, RED, 'stroke-width="2"'),
+    front: rect(31, 22, 5, 10, 1, GRY, 'stroke-width="2"') + rect(64, 22, 5, 10, 1, GRY, 'stroke-width="2"')});
+
+  I.s_bee = kid({body: "#fdd835", legs: "#455a64", mouth: "open",
+    torso: rect(36, 43, 28, 27, 8, "#fdd835") + rect(37, 51, 26, 4, 0, INK, NS) + rect(37, 60, 26, 4, 0, INK, NS),
+    back: ell(27, 40, 13, 8, "#e1f5fe") + ell(73, 40, 13, 8, "#e1f5fe"),
+    hat: line("M44 13Q42 6 36 6M56 13Q58 6 64 6", INK, 2.5) + circ(36, 6, 2.2, INK, NS) + circ(64, 6, 2.2, INK, NS)});
+
+  I.s_justme = kid({body: "#4db6ac", legs: "#455a64", mouth: "open", armR: [63, 48, 53, 52],
+    back: star(16, 14, 6, YEL) + star(84, 18, 5, "#80deea") + sm(66, 50, .2, heart("#f48fb1", 9)) + sm(4, 52, .18, heart("#f48fb1", 9))});
+
+  // “The ... can fly.”：会飞的小动物和玩具
+  I.s_beefly = flyLines() + path("M40 46Q30 22 46 24Q54 34 48 46Z", "#e1f5fe") + path("M50 46Q56 24 70 30Q68 42 56 48Z", "#e1f5fe") +
+    ell(48, 58, 17, 13, "#fdd835") + line("M42 48Q40 58 42 68", INK, 4) + line("M54 47Q56 58 54 69", INK, 4) +
+    circ(72, 54, 9, "#fdd835") + circ(75, 52, 1.8, INK, NS) + path("M66 58Q71 62 76 58", "none", 'stroke-width="2"') +
+    path("M32 58L22 56V62Z", INK) + line("M70 46Q70 38 76 36", INK, 2.5);
+
+  I.s_butterflyfly = path("M50 50Q30 14 14 30Q10 48 50 54Z", "#ab47bc") + path("M50 50Q70 14 86 30Q90 48 50 54Z", "#ab47bc") +
+    path("M50 54Q22 54 24 76Q40 84 50 60Z", "#f48fb1") + path("M50 54Q78 54 76 76Q60 84 50 60Z", "#f48fb1") +
+    circ(28, 34, 4, "#f3e5f5", NS) + circ(72, 34, 4, "#f3e5f5", NS) + circ(34, 68, 3, "#f3e5f5", NS) + circ(66, 68, 3, "#f3e5f5", NS) +
+    ell(50, 56, 3.4, 16, INK) + line("M50 42Q46 30 40 26M50 42Q54 30 60 26", INK, 2.5);
+
+  I.s_eaglefly = path("M50 46Q36 30 8 34Q20 40 16 52Q30 50 38 58Q44 52 50 52Z", "#795548") + path("M50 46Q64 30 92 34Q80 40 84 52Q70 50 62 58Q56 52 50 52Z", "#795548") +
+    path("M42 70L38 90H62L58 70Z", "#6d4c41") + ell(50, 58, 10, 16, "#8d6e63") + circ(50, 36, 9, WHT) +
+    path("M46 39Q50 51 54 39Z", YEL, 'stroke-width="2.2"') + circ(46, 33, 1.8, INK, NS) + circ(54, 33, 1.8, INK, NS);
+
+  I.s_batfly = path("M42 50Q28 34 6 40Q14 46 12 56Q20 54 22 62Q30 56 44 64Z", "#7e57c2") + path("M58 50Q72 34 94 40Q86 46 88 56Q80 54 78 62Q70 56 56 64Z", "#7e57c2") +
+    path("M43 36L41 24L49 32Z", "#5e35b1") + path("M57 36L59 24L51 32Z", "#5e35b1") + ell(50, 58, 9, 14, "#5e35b1") + circ(50, 42, 8.5, "#5e35b1") +
+    circ(46, 41, 2.2, WHT, NS) + circ(54, 41, 2.2, WHT, NS) + path("M46 47L47.5 51L49 47M51 47L52.5 51L54 47", "none", 'stroke="#ffffff" stroke-width="1.6"') +
+    star(84, 14, 5, YEL);
+
+  I.s_kitefly = path("M50 6L78 36L50 66L22 36Z", "#ef5350") + path("M50 6L78 36H50Z", "#fdd835", 'stroke-width="2.5"') + path("M50 66L22 36H50Z", "#fdd835", 'stroke-width="2.5"') +
+    line("M50 6V66M22 36H78", INK, 2.5) + path("M50 66Q36 74 48 82T50 94", "none", 'stroke-width="2.5"') +
+    circ(42, 76, 4, BLUE, 'stroke-width="2.2"') + circ(56, 86, 4, GRN, 'stroke-width="2.2"') + line("M82 60H92M86 70H94", SKY, 3);
+
+  I.s_flies = rect(6, 6, 88, 88, 8, "#b3e5fc") + circ(72, 28, 12, YEL) + line("M72 8V12M92 28H88M86 14L83 17M58 14L61 17", ORG, 3) +
+    sm(4, 50, .62, cloud()) + sm(46, 38, .5, cloud()) + line("M16 26Q22 18 28 26Q34 18 40 26", INK, 3) + line("M44 12Q48 7 52 12Q56 7 60 12", INK, 2.5);
+
+  // 词组与家人
+  I.s_oldyoung = sm(-10, 10, .86, kid({body: "#8d6e63", legs: "#455a64", hair: hairShort("#cfd8dc"), glasses: true, armR: [63, 48, 71, 65],
+    front: line("M71 60V90", BRN, 3.5)})) +
+    sm(46, 34, .56, kid({body: "#ffb74d", legs: "#5c6bc0", mouth: "open"}));
+
+  I.s_famtree = rect(44, 58, 12, 34, 2, BRN) +
+    [[50, 32, 26], [28, 46, 18], [72, 46, 18]].map(([x, y, r]) => circ(x, y, r, "#66bb6a")).join("") +
+    [[50, 32, 26], [28, 46, 18], [72, 46, 18]].map(([x, y, r]) => circ(x, y, r, "#66bb6a", NS)).join("") +
+    [[31, 22], [56, 22], [18, 44], [66, 44]].map(([x, y]) => rect(x, y, 15, 15, 2, "#fff8e1", 'stroke-width="2"') + circ(x + 7.5, y + 7.5, 4.2, SKIN, 'stroke-width="1.5"')).join("") +
+    line("M20 92H80", GRN, 3);
+
+  I.s_fourpeople = sm(36, 4, .28, heart(RED, 7)) +
+    [[-8, "#42a5f5"], [15, "#f06292"], [39, "#ffb74d"], [62, "#66bb6a"]].map(([x, b]) => sm(x, 26, .46, kid({body: b, legs: "#455a64"}))).join("") +
+    [15, 38, 62, 85].map((x, i) => circ(x, 84, 4.5, [BLUE, "#f06292", ORG, GRN][i], 'stroke-width="2.2"')).join("");
+
+  I.s_lovefam = rect(10, 22, 80, 58, 5, BRN) + rect(17, 29, 66, 44, 2, "#e3f2fd", 'stroke-width="2"') +
+    faceAt(34, 54, 10) + faceAt(56, 50, 10) + faceAt(72, 60, 7) + sm(36, 0, .3, heart(RED, 7)) + sm(2, 80, .16, heart("#f48fb1", 9)) + sm(80, 80, .16, heart("#f48fb1", 9));
+
   const wrap = body => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none" stroke="${INK}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img">${body}</svg>`;
   const out = {};
   Object.keys(I).forEach(k => { out[k] = wrap(I[k]); });
@@ -393,7 +499,7 @@ const ART = (function(){
 })();
 
 // 同一个词出现在两个单元里（id 不同）时共用一张图
-const ART_ALIAS = {firefighter2: "firefighter"};
+const ART_ALIAS = {firefighter2: "firefighter", family2: "family"};
 const artFor = id => ART[ART_ALIAS[id] || id] || null;
 (function applyArt(){
   if(typeof LESSONS === "undefined") return;
